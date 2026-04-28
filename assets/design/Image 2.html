@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GeoPDF Navigator - Biblioteca</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed-dim": "#ffb4a2",
+                      "outline-variant": "#3b4a3d",
+                      "inverse-on-surface": "#313030",
+                      "on-error-container": "#ffdad6",
+                      "secondary-container": "#0068ed",
+                      "primary": "#75ff9e",
+                      "on-primary-container": "#00612e",
+                      "primary-fixed-dim": "#00e475",
+                      "error-container": "#93000a",
+                      "surface-container-low": "#1c1b1b",
+                      "surface-container-high": "#2a2a2a",
+                      "secondary-fixed": "#d9e2ff",
+                      "on-secondary-fixed-variant": "#00429b",
+                      "surface-dim": "#131313",
+                      "outline": "#859585",
+                      "on-primary-fixed": "#00210b",
+                      "inverse-primary": "#006d35",
+                      "on-tertiary": "#621100",
+                      "error": "#ffb4ab",
+                      "on-secondary-fixed": "#001945",
+                      "surface-tint": "#00e475",
+                      "on-background": "#e5e2e1",
+                      "inverse-surface": "#e5e2e1",
+                      "on-secondary-container": "#f2f3ff",
+                      "background": "#131313",
+                      "surface-container": "#201f1f",
+                      "tertiary-container": "#ffb7a5",
+                      "surface": "#131313",
+                      "on-surface-variant": "#bacbb9",
+                      "secondary": "#b0c6ff",
+                      "tertiary-fixed": "#ffdad2",
+                      "primary-fixed": "#62ff96",
+                      "on-tertiary-fixed-variant": "#8a1d00",
+                      "surface-bright": "#393939",
+                      "surface-variant": "#353534",
+                      "on-tertiary-fixed": "#3c0700",
+                      "on-surface": "#e5e2e1",
+                      "tertiary": "#ffddd5",
+                      "secondary-fixed-dim": "#b0c6ff",
+                      "on-secondary": "#002d6e",
+                      "surface-container-lowest": "#0e0e0e",
+                      "primary-container": "#00e676",
+                      "on-error": "#690005",
+                      "on-primary": "#003918",
+                      "surface-container-highest": "#353534",
+                      "on-tertiary-container": "#a12300",
+                      "on-primary-fixed-variant": "#005226"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "lg": "24px",
+                      "unit": "4px",
+                      "safe-area": "20px",
+                      "sm": "8px",
+                      "gutter": "12px",
+                      "xl": "32px",
+                      "xs": "4px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Space Grotesk"
+                      ],
+                      "headline-lg": [
+                              "Space Grotesk"
+                      ],
+                      "mono-data": [
+                              "Space Grotesk"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "mono-data": [
+                              "14px",
+                              {
+                                      "lineHeight": "1",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "1",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="bg-neutral-900/95 dark:bg-neutral-950/95 text-primary-container font-['Space_Grotesk'] uppercase tracking-widest text-xs font-bold top-0 border-b border-neutral-800 flex justify-between items-center w-full px-4 h-14 z-50 sticky">
+<button class="text-neutral-400 hover:bg-neutral-800 transition-colors active:scale-95 duration-100 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style='font-variation-settings: "FILL" 0;'>menu</span>
+</button>
+<h1 class="text-xl font-display font-bold tracking-tight absolute left-1/2 -translate-x-1/2 text-primary">NaviMap</h1>
+<div class="flex items-center">
+<button class="text-neutral-400 hover:bg-neutral-800 transition-colors active:scale-95 duration-100 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style='font-variation-settings: "FILL" 0;'>search</span>
+</button>
+<button class="text-neutral-400 hover:bg-neutral-800 transition-colors active:scale-95 duration-100 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style='font-variation-settings: "FILL" 0;'>settings</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col pb-20 w-full max-w-3xl mx-auto px-4 pt-6 space-y-6 relative">
+<!-- Search & Filter Bar -->
+<section class="flex flex-col space-y-4">
+<!-- Segmented Control -->
+<div class="flex w-full rounded-md border border-outline-variant overflow-hidden bg-surface-container p-0.5">
+<button class="flex-1 flex items-center justify-center py-1.5 bg-[#00E676] text-[#003918] font-label-caps text-[11px] transition-colors rounded-l-md">
+                    Mapas
+                </button>
+<button class="flex-1 flex items-center justify-center py-1.5 bg-transparent text-on-surface-variant hover:bg-surface-variant hover:text-on-surface font-label-caps text-[11px] transition-colors rounded-r-md border-l border-outline-variant">
+                    Capas
+                </button>
+</div>
+</section>
+<!-- Map List (List Style) -->
+<section class="flex flex-col space-y-4">
+<h2 class="font-label-caps text-label-caps text-on-surface-variant tracking-widest uppercase" style="">Mapas Disponibles (12)</h2>
+<div class="flex flex-col space-y-3">
+<!-- Map Item 1 -->
+<article class="bg-surface-container border border-outline-variant rounded-lg p-3 hover:border-primary-container transition-colors flex items-center gap-4 group">
+<div class="w-16 h-16 rounded-md bg-surface-variant overflow-hidden flex-shrink-0">
+<img alt="Topographic map thumbnail" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6nfg0uRRi3wg2UOl-ZWlsYr3ROwVvifqAq3lw8BTC0Dj3SR2yJZOfs5_g8ELb5lcFxvYyOJXgjWb-U-mKVO_YiN7GtZFYV2-Qx4ioNxhFzDoIxFmA31dbmMYcTUNc2KPYUGXzEo4ilHdi2qxExzzh2f-w29ElFNGnFcmdYHJ8fucAqH3Xrpo1RcSVIZHDUQy8hLe5JI4DXpy-3F2ddjxigmGZhpLipqQhBUoQi9xWVGlSjN_waOUacdTmy2IvWcz1QORrldyCfnQ" style=""/>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<h3 class="font-headline-md text-[16px] font-semibold text-on-surface truncate" style="">Hacienda La Gloria</h3>
+<p class="font-body-md text-[12px] text-on-surface-variant truncate mb-1" style="">Topographic Survey • Sector 4 • 42.5 MB</p>
+<span class="font-label-caps text-[10px] text-primary-container uppercase flex items-center gap-1" style="">
+<span class="material-symbols-outlined text-[14px]" style="">my_location</span>
+        Estás en el mapa
+    </span>
+</div>
+<button class="text-on-surface-variant hover:text-primary-container transition-colors p-2 shrink-0" style="">
+<span class="material-symbols-outlined" style="">more_vert</span>
+</button>
+</article>
+<!-- Map Item 2 -->
+<article class="bg-surface-container border border-outline-variant rounded-lg p-3 hover:border-primary-container transition-colors flex items-center gap-4 group">
+<div class="w-16 h-16 rounded-md bg-surface-variant overflow-hidden flex-shrink-0">
+<img alt="Satellite map thumbnail" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdqOh2l8CGFK3BFLFHRo3x348BRTqruzDlDKNdblATDTWW-eYw5bbwqVl0aHCoe0lgr6tM92uuInWg5oq7rq1mrW_vWUSQEiWR90fB523Gc0u1k-SL5kauavporkN-iNgm4ybZ2PWXcv4D4FdD3xiKhxOObawfIcPqiKlMl_4hjxuT6m1i2wbWySJiSYGEoPJ5RgKCKJRDE4aSsqzBE1Bs8ggakXAOuUXXdYli-faSOGW0FT5N77RLLsGUexLm8cYS1vTEmJV63og" style=""/>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<h3 class="font-headline-md text-[16px] font-semibold text-on-surface truncate text-on-surface-variant" style="">Rio Verde Basin</h3>
+<p class="font-body-md text-[12px] text-on-surface-variant truncate mb-1" style="">Satellite Imagery • Q3 2023 • 156 MB</p>
+<span class="font-label-caps text-[10px] text-on-surface-variant uppercase flex items-center gap-1" style="">
+<span class="material-symbols-outlined text-[14px]" style="">location_off</span>
+        Fuera del mapa
+    </span>
+</div>
+<button class="text-on-surface-variant hover:text-primary-container transition-colors p-2 shrink-0" style="">
+<span class="material-symbols-outlined" style="">more_vert</span>
+</button>
+</article>
+</div>
+</section>
+</main>
+<!-- FAB -->
+<button class="fixed bottom-20 right-4 w-14 h-14 bg-[#00E676] rounded-full flex items-center justify-center shadow-lg text-[#003918] hover:bg-[#00E676]/90 transition-colors z-50" style="">
+<span class="material-symbols-outlined text-2xl font-bold" style="">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="bg-neutral-900 dark:bg-neutral-950 font-['Space_Grotesk'] text-[10px] font-bold uppercase tracking-tighter fixed bottom-0 w-full border-t border-neutral-800 flat no shadows fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 px-2 md:hidden">
+<!-- Active Tab: Library -->
+<button class="flex flex-col items-center justify-center text-primary-container bg-neutral-800/50 rounded-none border-t-2 border-primary-container pt-1 active:opacity-80 transition-all flex-1 h-full" style="">
+<span class="material-symbols-outlined mb-1" style='font-variation-settings: "FILL" 1;'>folder_open</span>
+            Biblioteca
+        </button>
+<button class="flex flex-col items-center justify-center text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/30 active:opacity-80 transition-all flex-1 h-full" style="">
+<span class="material-symbols-outlined mb-1" style='font-variation-settings: "FILL" 0;'>satellite_alt</span>
+            Satélite
+        </button>
+</nav>
+</body></html>

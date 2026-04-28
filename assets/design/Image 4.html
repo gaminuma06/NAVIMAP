@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GEONAV PRO - Menu</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#ffdad6",
+                        "surface": "#131313",
+                        "primary-container": "#00e676",
+                        "surface-variant": "#353534",
+                        "secondary-fixed": "#d9e2ff",
+                        "outline-variant": "#3b4a3d",
+                        "primary-fixed": "#62ff96",
+                        "primary-fixed-dim": "#00e475",
+                        "inverse-primary": "#006d35",
+                        "surface-container-high": "#2a2a2a",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#ffdad2",
+                        "on-tertiary": "#621100",
+                        "on-secondary": "#002d6e",
+                        "tertiary-container": "#ffb7a5",
+                        "on-tertiary-container": "#a12300",
+                        "inverse-on-surface": "#313030",
+                        "surface-dim": "#131313",
+                        "inverse-surface": "#e5e2e1",
+                        "tertiary-fixed-dim": "#ffb4a2",
+                        "surface-container": "#201f1f",
+                        "on-secondary-fixed-variant": "#00429b",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-surface": "#e5e2e1",
+                        "on-primary-fixed-variant": "#005226",
+                        "outline": "#859585",
+                        "surface-tint": "#00e475",
+                        "surface-bright": "#393939",
+                        "on-secondary-fixed": "#001945",
+                        "on-primary": "#003918",
+                        "on-secondary-container": "#f2f3ff",
+                        "background": "#131313",
+                        "on-primary-container": "#00612e",
+                        "primary": "#75ff9e",
+                        "secondary-fixed-dim": "#b0c6ff",
+                        "on-tertiary-fixed": "#3c0700",
+                        "tertiary": "#ffddd5",
+                        "error": "#ffb4ab",
+                        "secondary": "#b0c6ff",
+                        "on-surface-variant": "#bacbb9",
+                        "secondary-container": "#0068ed",
+                        "on-primary-fixed": "#00210b",
+                        "surface-container-low": "#1c1b1b",
+                        "on-tertiary-fixed-variant": "#8a1d00",
+                        "on-error": "#690005",
+                        "surface-container-highest": "#353534",
+                        "on-background": "#e5e2e1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "unit": "4px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "safe-area": "20px",
+                        "lg": "24px",
+                        "gutter": "12px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "headline-md": ["Space Grotesk"],
+                        "body-lg": ["Inter"],
+                        "mono-data": ["Space Grotesk"],
+                        "headline-lg": ["Space Grotesk"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "mono-data": ["14px", { "lineHeight": "1", "letterSpacing": "-0.02em", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen overflow-hidden flex flex-col font-body-md text-body-md">
+<!-- TopAppBar -->
+<header class="bg-neutral-900/90 dark:bg-neutral-900/90 text-emerald-400 dark:text-emerald-400 font-['Space_Grotesk'] font-bold tracking-tighter fixed top-0 left-0 w-full z-50 border-b border-neutral-800 flat no-shadows flex justify-between items-center h-14 px-4 backdrop-blur-md hover:bg-neutral-800 transition-colors active:scale-95 duration-150">
+<button class="w-11 h-11 flex items-center justify-center text-neutral-400 hover:bg-neutral-800 transition-colors active:scale-95 duration-150" onclick="history.back()"><span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span></button>
+<h1 class="text-lg font-black tracking-widest text-emerald-400 dark:text-emerald-400 uppercase">GEONAV PRO</h1>
+<button class="w-11 h-11 flex items-center justify-center text-neutral-400 hover:bg-neutral-800 transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</header>
+<!-- Map Canvas (Background) -->
+<main class="flex-grow relative mt-14 mb-16">
+<div class="absolute inset-0 bg-surface-container-lowest">
+<!-- Simulated map texture using gradient for technical feel -->
+<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-surface-container-high via-surface to-background opacity-50"></div>
+<!-- Grid lines for map context -->
+<div class="absolute inset-0" style="background-image: linear-gradient(to right, #333 1px, transparent 1px), linear-gradient(to bottom, #333 1px, transparent 1px); background-size: 40px 40px; opacity: 0.2;"></div>
+<!-- Map content placeholder -->
+<div class="absolute inset-0 flex items-center justify-center text-surface-variant font-mono-data text-mono-data opacity-30">
+                NO SIGNAL / OFFLINE
+            </div>
+</div>
+</main>
+<!-- Overlay (Dimming effect behind drawer) -->
+<div aria-hidden="true" class="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[55]"></div>
+<!-- NavigationDrawer -->
+<aside class="bg-neutral-900 dark:bg-neutral-900 text-emerald-400 dark:text-emerald-400 font-['Space_Grotesk'] text-sm uppercase tracking-wide h-full w-80 fixed left-0 top-0 z-[60] border-r border-neutral-800 shadow-2xl dark:shadow-none flex flex-col pt-8">
+<div class="px-6 mt-6 flex items-center gap-4"><button class="-ml-2 p-2 flex items-center justify-center text-neutral-400 hover:text-emerald-400 hover:bg-neutral-800 transition-colors active:scale-95 duration-150 rounded-full" onclick="history.back()">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<h2 class="text-xl font-bold text-emerald-400">GEONAV PRO</h2>
+</div>
+<nav class="flex-grow">
+<ul>
+<li>
+<!-- Assuming Iniciar Sesión is active since we are showing the auth drawer -->
+<a class="bg-emerald-400/10 text-emerald-400 border-l-4 border-emerald-400 px-6 py-4 flex items-center gap-4 hover:bg-neutral-800 transition-all active:bg-neutral-700" href="#">
+<span class="material-symbols-outlined" data-icon="login">login</span>
+<span>Iniciar Sesión</span>
+</a>
+</li>
+<li>
+<a class="text-neutral-400 hover:text-white px-6 py-4 flex items-center gap-4 hover:bg-neutral-800 transition-all active:bg-neutral-700" href="#">
+<span class="material-symbols-outlined" data-icon="person_add">person_add</span>
+<span>Crear Cuenta</span>
+</a>
+</li>
+</ul>
+</nav>
+<div class="p-6 text-neutral-500 font-label-caps text-label-caps mt-auto border-t border-neutral-800/50">
+            v 2.4.1 (BUILD 8092)
+        </div>
+</aside>
+<!-- BottomNavBar -->
+<nav class="bg-neutral-900/95 dark:bg-neutral-900/95 text-emerald-400 dark:text-emerald-400 font-['Space_Grotesk'] text-[10px] font-medium uppercase fixed bottom-0 left-0 w-full z-50 h-16 border-t border-neutral-800 flat no-shadows flex justify-around items-center px-8 md:hidden">
+<button class="flex flex-col items-center justify-center text-neutral-500 hover:text-white active:scale-90 transition-transform w-20">
+<span class="material-symbols-outlined mb-1" data-icon="folder_special">folder_special</span>
+<span>Biblioteca</span>
+</button>
+<button class="flex flex-col items-center justify-center text-neutral-500 hover:text-white active:scale-90 transition-transform w-20">
+<span class="material-symbols-outlined mb-1" data-icon="satellite_alt">satellite_alt</span>
+<span>Satélite</span>
+</button>
+</nav>
+</body></html>

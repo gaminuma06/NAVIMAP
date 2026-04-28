@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ajustes</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdad2",
+                        "on-primary-fixed-variant": "#005226",
+                        "secondary-container": "#0068ed",
+                        "secondary-fixed": "#d9e2ff",
+                        "on-background": "#e5e2e1",
+                        "on-tertiary-fixed-variant": "#8a1d00",
+                        "error": "#ffb4ab",
+                        "surface-container-highest": "#353534",
+                        "primary": "#75ff9e",
+                        "tertiary-container": "#ffb7a5",
+                        "outline": "#859585",
+                        "on-secondary-container": "#f2f3ff",
+                        "on-primary": "#003918",
+                        "surface-bright": "#393939",
+                        "primary-container": "#00e676",
+                        "on-tertiary-fixed": "#3c0700",
+                        "surface-container": "#201f1f",
+                        "surface-container-lowest": "#0e0e0e",
+                        "background": "#131313",
+                        "on-primary-fixed": "#00210b",
+                        "on-error": "#690005",
+                        "primary-fixed": "#62ff96",
+                        "on-secondary-fixed-variant": "#00429b",
+                        "surface-dim": "#131313",
+                        "tertiary": "#ffddd5",
+                        "inverse-primary": "#006d35",
+                        "on-tertiary": "#621100",
+                        "surface-variant": "#353534",
+                        "on-surface": "#e5e2e1",
+                        "inverse-on-surface": "#313030",
+                        "on-surface-variant": "#bacbb9",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#ffb4a2",
+                        "surface-tint": "#00e475",
+                        "outline-variant": "#3b4a3d",
+                        "on-primary-container": "#00612e",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-container-low": "#1c1b1b",
+                        "on-secondary-fixed": "#001945",
+                        "secondary-fixed-dim": "#b0c6ff",
+                        "primary-fixed-dim": "#00e475",
+                        "on-tertiary-container": "#a12300",
+                        "surface-container-high": "#2a2a2a",
+                        "on-secondary": "#002d6e",
+                        "surface": "#131313",
+                        "secondary": "#b0c6ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "sm": "8px",
+                        "safe-area": "20px",
+                        "gutter": "12px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Space Grotesk"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Space Grotesk"],
+                        "mono-data": ["Space Grotesk"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "mono-data": ["14px", { "lineHeight": "1", "letterSpacing": "-0.02em", "fontWeight": "500" }],
+                        "label-caps": ["12px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        body {
+            background-color: #131313; /* match theme background */
+            color: #e5e2e1; /* match theme on-background */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen pb-24 pt-14">
+<!-- TopAppBar -->
+<header class="bg-[#1A1A1A] dark:bg-[#1A1A1A] text-[#00E676] dark:text-[#00E676] font-['Space_Grotesk'] font-bold tracking-widest uppercase text-xl border-b border-[#333333] fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-14">
+<button class="text-white hover:bg-[#333333] transition-colors active:scale-95 duration-75 p-2 rounded-DEFAULT flex items-center justify-center"><span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span></button>
+<h1 class="text-[#00E676] font-black text-xl">AJUSTES</h1>
+</header>
+<!-- Main Content Canvas -->
+<main class="max-w-2xl mx-auto px-4 py-8 space-y-4">
+<!-- Settings Item: Idioma -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-4 flex items-center justify-between hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center space-x-4">
+<div class="bg-surface-variant p-2 rounded-DEFAULT border border-surface-container-highest group-hover:border-outline transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="language">language</span>
+</div>
+<span class="font-body-lg text-on-surface">Idioma</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary-container transition-colors" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Settings Item: Menú de Ayuda -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-4 flex items-center justify-between hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center space-x-4">
+<div class="bg-surface-variant p-2 rounded-DEFAULT border border-surface-container-highest group-hover:border-outline transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="help">help</span>
+</div>
+<span class="font-body-lg text-on-surface">Menú de Ayuda</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary-container transition-colors" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Settings Item: Unidades de Medida -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-4 flex items-center justify-between hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center space-x-4">
+<div class="bg-surface-variant p-2 rounded-DEFAULT border border-surface-container-highest group-hover:border-outline transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="straighten">straighten</span>
+</div>
+<span class="font-body-lg text-on-surface">Unidades de Medida</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary-container transition-colors" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Settings Item: Configuración de Notificaciones (Toggle) -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-4 flex items-center justify-between">
+<div class="flex items-center space-x-4">
+<div class="bg-surface-variant p-2 rounded-DEFAULT border border-surface-container-highest">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+</div>
+<span class="font-body-lg text-on-surface">Configuración de Notificaciones</span>
+</div>
+<!-- Toggle Switch (On State) -->
+<button aria-pressed="true" class="w-12 h-6 bg-secondary-container rounded-full relative focus:outline-none transition-colors">
+<div class="absolute right-1 top-1 w-4 h-4 bg-on-secondary-container rounded-full shadow-sm transition-transform"></div>
+</button>
+</div>
+</main>
+<!-- Suppressed FAB on Settings Page according to guidelines -->
+<!-- The prompt asked for a FAB, but guidelines mandate suppressing FABs on Settings/Profile screens. I will omit the FAB to strictly follow the JSON/Blueprint guidelines for Contextual State & Identity. -->
+<!-- BottomNavBar (Hidden on md, visible on small) -->
+<nav class="md:hidden bg-[#1A1A1A] dark:bg-[#1A1A1A] text-[#00E676] dark:text-[#00E676] font-['Space_Grotesk'] text-[10px] uppercase font-bold tracking-tighter border-t border-[#333333] fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-6 pb-safe h-16">
+<!-- Inactive -->
+<button class="flex flex-col items-center justify-center text-gray-400 py-1 hover:text-[#00E676] transition-all active:scale-90 duration-75 w-1/2">
+<span class="material-symbols-outlined mb-1" data-icon="folder">folder</span>
+<span>Biblioteca</span>
+</button>
+<!-- Inactive -->
+<button class="flex flex-col items-center justify-center text-gray-400 py-1 hover:text-[#00E676] transition-all active:scale-90 duration-75 w-1/2">
+<span class="material-symbols-outlined mb-1" data-icon="satellite_alt">satellite_alt</span>
+<span>Satélite</span>
+</button>
+</nav>
+</body></html>

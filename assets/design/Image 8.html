@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;family=Space+Grotesk:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#e5e2e1",
+                        "inverse-primary": "#006d35",
+                        "on-tertiary": "#621100",
+                        "tertiary-container": "#ffb7a5",
+                        "secondary-fixed": "#d9e2ff",
+                        "outline-variant": "#3b4a3d",
+                        "inverse-surface": "#e5e2e1",
+                        "primary-fixed-dim": "#00e475",
+                        "on-primary-fixed-variant": "#005226",
+                        "on-tertiary-fixed": "#3c0700",
+                        "on-error-container": "#ffdad6",
+                        "error": "#ffb4ab",
+                        "on-primary": "#003918",
+                        "surface-variant": "#353534",
+                        "on-primary-container": "#00612e",
+                        "primary-container": "#00e676",
+                        "inverse-on-surface": "#313030",
+                        "background": "#131313",
+                        "secondary-container": "#0068ed",
+                        "secondary": "#b0c6ff",
+                        "outline": "#859585",
+                        "primary": "#75ff9e",
+                        "surface-bright": "#393939",
+                        "surface-dim": "#131313",
+                        "primary-fixed": "#62ff96",
+                        "surface-tint": "#00e475",
+                        "on-tertiary-fixed-variant": "#8a1d00",
+                        "on-surface-variant": "#bacbb9",
+                        "on-primary-fixed": "#00210b",
+                        "surface-container-lowest": "#0e0e0e",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#ffb4a2",
+                        "on-secondary-fixed-variant": "#00429b",
+                        "on-secondary": "#002d6e",
+                        "surface-container-high": "#2a2a2a",
+                        "tertiary": "#ffddd5",
+                        "tertiary-fixed": "#ffdad2",
+                        "surface": "#131313",
+                        "on-tertiary-container": "#a12300",
+                        "surface-container": "#201f1f",
+                        "secondary-fixed-dim": "#b0c6ff",
+                        "on-secondary-fixed": "#001945",
+                        "on-error": "#690005",
+                        "on-background": "#e5e2e1",
+                        "on-secondary-container": "#f2f3ff",
+                        "surface-container-highest": "#353534",
+                        "surface-container-low": "#1c1b1b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "unit": "4px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "gutter": "12px",
+                        "xl": "32px",
+                        "safe-area": "20px"
+                    },
+                    "fontFamily": {
+                        "mono-data": ["Space Grotesk"],
+                        "headline-lg": ["Space Grotesk"],
+                        "headline-md": ["Space Grotesk"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "mono-data": ["14px", {"lineHeight": "1", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .map-canvas {
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary-container selection:text-on-primary-container overflow-hidden">
+<!-- Satellite Map Canvas -->
+<div class="fixed inset-0 z-0 map-canvas" data-alt="High resolution satellite imagery of a dense tropical river basin with detailed forest textures and sediment-rich water channels from an orbital perspective" data-location="Amazon Basin" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDastt5PpbbFdqXR9E9DM6x_9Suq618xTBj-YZ_DER5nmQDbcrOpQ_sJqPE33SLdZZ4_mEX7s2Mybr0z-HWHeF9xgiiq7wmaV9JdxhqTThp3k4nBFsch-rUl7W3hNtN11A-dUNAxbuhZizW1Vb3fIjgHe5F7ZXL-uIWsq4Da34o1b-UA5mZYtS3FMAolujGmEbTlTpESe32AD0kquGvJ2ZgVFAwnYc1bjq4O5t-yuesr18ovn_oeD0qxuxHyL5V_W_PJ8-SFOQ9pGg');">
+<!-- Map Overlay Gradient for Contrast -->
+<div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 pointer-events-none"></div>
+</div>
+<!-- Technical Crosshair -->
+<div class="fixed inset-0 flex items-center justify-center pointer-events-none z-10">
+<div class="relative flex items-center justify-center">
+<!-- Center Dot -->
+<div class="w-1 h-1 bg-primary-container rounded-full shadow-[0_0_8px_#00E676]"></div>
+<!-- Circle -->
+<div class="absolute w-32 h-32 border border-primary-container/30 rounded-full"></div>
+<!-- Horizontal Line -->
+<div class="absolute w-48 h-px bg-gradient-to-r from-transparent via-primary-container/60 to-transparent"></div>
+<!-- Vertical Line -->
+<div class="absolute w-px h-48 bg-gradient-to-b from-transparent via-primary-container/60 to-transparent"></div>
+<!-- Corner Brackets -->
+<div class="absolute -top-4 -left-4 w-4 h-4 border-t-2 border-l-2 border-primary-container"></div>
+<div class="absolute -top-4 -right-4 w-4 h-4 border-t-2 border-r-2 border-primary-container"></div>
+<div class="absolute -bottom-4 -left-4 w-4 h-4 border-b-2 border-l-2 border-primary-container"></div>
+<div class="absolute -bottom-4 -right-4 w-4 h-4 border-b-2 border-r-2 border-primary-container"></div>
+</div>
+</div>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-4 h-16 bg-zinc-900/90 backdrop-blur-md border-b border-zinc-800">
+<div class="flex items-center gap-4">
+<button class="p-2 text-[#00E676] hover:bg-zinc-800/50 transition-all duration-200 active:opacity-70 rounded-md">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+</div>
+<h1 class="text-[#00E676] font-['Space_Grotesk'] font-bold tracking-tighter uppercase text-lg">VISTA SATELITAL</h1>
+<div class="flex items-center gap-1">
+<button class="p-2 text-[#00E676] hover:bg-zinc-800/50 transition-all duration-200 active:opacity-70 rounded-md">
+<span class="material-symbols-outlined" data-icon="info">info</span>
+</button>
+</div>
+</header>
+<!-- Side Tools Drawer (Floating Module) -->
+<aside class="fixed right-4 top-24 z-20 flex flex-col gap-2">
+<div class="bg-zinc-900/95 border border-zinc-800 rounded-lg p-1 shadow-lg">
+<button class="flex items-center justify-center w-11 h-11 hover:bg-zinc-800 transition-colors rounded text-[#00E676]"><span class="material-symbols-outlined" data-icon="my_location">my_location</span></button>
+</div>
+</aside>
+<!-- Scale Indicator -->
+<!-- Bottom Toolbar / Status Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-6 h-20 pb-safe bg-zinc-900/95 border-t border-zinc-800">
+<!-- Tool: Edit/Draw -->
+<button class="flex flex-col items-center justify-center text-zinc-500 p-2 hover:text-emerald-300 transition-transform active:scale-95">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<!-- Centered GPS Data Pill -->
+<div class="flex-1 flex justify-center px-4 w-full">
+<div class="bg-zinc-800/80 rounded-full px-6 py-2 border border-primary-container/20 shadow-[0_0_12px_rgba(0,230,118,0.1)] flex items-center gap-3">
+<div class="w-2 h-2 bg-primary-container rounded-full animate-pulse"></div>
+<span class="font-mono-data text-[#00E676] text-sm tracking-tighter">8°39'25.3", -73°50'15.2"</span>
+</div>
+</div>
+<!-- Tool: Layers -->
+<button class="flex flex-col items-center justify-center text-[#00E676] bg-zinc-800/80 rounded-md p-2 shadow-[0_0_8px_rgba(0,230,118,0.3)] transition-transform active:scale-95">
+<span class="material-symbols-outlined" data-icon="layers">layers</span>
+</button>
+<!-- Tool: My Location -->
+</nav>
+<!-- Compass Indicator -->
+<div class="fixed right-4 bottom-24 z-20">
+<button class="w-12 h-12 rounded-full bg-zinc-900/90 border border-zinc-800 flex items-center justify-center shadow-lg hover:bg-zinc-800 transition-colors active:scale-95 group">
+<span class="material-symbols-outlined text-[#00E676]" data-icon="location_on">location_on</span>
+</button>
+</div>
+</body></html>
