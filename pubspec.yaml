@@ -45,6 +45,7 @@ dependencies:
   flutter_map_geojson: ^1.0.8
   google_fonts: 8.1.0
   pdfx: ^2.9.2
+  dotted_border: ^2.1.0
 
 dev_dependencies:
   flutter_test:

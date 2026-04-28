@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
-import 'dart:js' as js; // Importación necesaria para la descarga en Web
+import 'dart:js' as js;
+import 'package:dotted_border/dotted_border.dart';
 import '../theme/design_system.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/map_list_item.dart';
+import '../widgets/layer_list_item.dart';
 import 'add_map_overlay.dart';
 import '../services/map_data_service.dart';
 
-// Almacén estático para asegurar que los bytes persistan en la sesión Web
 class MapStore {
   static Map<String, Uint8List> bytesCache = {};
 }
@@ -25,23 +26,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  final List<Map<String, dynamic>> _mockMaps = [
-    {
-      'title': 'Hacienda La Gloria',
-      'date': '24/04/2026',
-      'status': MapSpatialStatus.within,
-    },
-    {
-      'title': 'Rio Verde Basin',
-      'date': '22/04/2026',
-      'status': MapSpatialStatus.outside,
-    },
-    {
-      'title': 'Sector Norte - Sin Ref',
-      'date': '20/04/2026',
-      'status': MapSpatialStatus.notReferenced,
-    },
-  ];
+  final List<Map<String, dynamic>> _mockMaps = [];
+  final List<Map<String, dynamic>> _mockLayers = [];
+
+  bool get isMapsTab => _selectedSegment == 0;
 
   List<Map<String, dynamic>> get _filteredMaps {
     if (_searchQuery.isEmpty) return _mockMaps;
@@ -50,8 +38,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
     ).toList();
   }
 
+  List<Map<String, dynamic>> get _filteredLayers {
+    if (_searchQuery.isEmpty) return _mockLayers;
+    return _mockLayers.where((layer) => 
+      layer['title'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
+    ).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currentList = isMapsTab ? _filteredMaps : _filteredLayers;
+
     return Scaffold(
       appBar: AppBar(
         title: _isSearching 
@@ -60,7 +57,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               autofocus: true,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
-                hintText: 'Buscar mapa...',
+                hintText: 'Buscar...',
                 hintStyle: TextStyle(color: Colors.white54),
                 border: InputBorder.none,
               ),
@@ -118,67 +115,67 @@ class _LibraryScreenState extends State<LibraryScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
             child: Text(
-              'MAPAS DISPONIBLES (${_filteredMaps.length})',
+              '${isMapsTab ? "MAPAS" : "CAPAS"} DISPONIBLES (${currentList.length})',
               style: DesignSystem.labelCaps.copyWith(color: Colors.white54),
             ),
           ),
           const SizedBox(height: DesignSystem.spacingMd),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
-              itemCount: _filteredMaps.length,
-              itemBuilder: (context, index) {
-                final map = _filteredMaps[index];
-                final String title = map['title'];
-                
-                return MapListItem(
-                  title: title,
-                  dateAdded: map['date'],
-                  status: map['status'],
-                  thumbnailBytes: map['thumbnailBytes'],
-                  onTap: () {
-                    final bytes = MapStore.bytesCache[title];
-                    if (bytes != null) {
-                      // Pasamos una COPIA al servicio para que el visor no destruya el original en el caché
-                      MapDataService().setCurrentMap(title, Uint8List.fromList(bytes));
-                    }
-                    Navigator.pushNamed(context, '/detail');
-                  },
-                  onDownload: () {
-                    final bytes = MapStore.bytesCache[title];
-                    if (bytes != null) {
-                      // Pasamos una COPIA a la descarga
-                      _downloadMap(title, Uint8List.fromList(bytes));
-                    } else {
-                      _downloadMap(title, null);
-                    }
-                  },
-                  onDelete: () => _confirmDelete(index),
-                );
-              },
-            ),
+            child: currentList.isEmpty && !_isSearching
+                ? _buildEmptyStatePlaceholder(isMapsTab ? 'mapas' : 'capas')
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
+                    itemCount: currentList.length,
+                    itemBuilder: (context, index) {
+                      final item = currentList[index];
+                      final String title = item['title'];
+                      
+                      if (isMapsTab) {
+                        return MapListItem(
+                          title: title,
+                          dateAdded: item['date'],
+                          status: item['status'],
+                          thumbnailBytes: item['thumbnailBytes'],
+                          onTap: () {
+                            final bytes = MapStore.bytesCache[title];
+                            if (bytes != null) {
+                              MapDataService().setCurrentMap(title, Uint8List.fromList(bytes));
+                            }
+                            Navigator.pushNamed(context, '/detail');
+                          },
+                          onDownload: () {
+                            final bytes = MapStore.bytesCache[title];
+                            if (bytes != null) {
+                              _downloadMap(title, Uint8List.fromList(bytes));
+                            } else {
+                              _downloadMap(title, null);
+                            }
+                          },
+                          onDelete: () => _confirmDeleteMap(index),
+                        );
+                      } else {
+                        return LayerListItem(
+                          title: title,
+                          objectCount: item['objects'] ?? 0,
+                          onTap: () {
+                            // Acción al tocar una capa
+                          },
+                          onDelete: () => _confirmDeleteLayer(index),
+                          onRename: () => _showRenameLayerDialog(index),
+                          onExport: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Exportando capa "$title"...')),
+                            );
+                          },
+                        );
+                      }
+                    },
+                  ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => AddMapOverlay.show(
-          context,
-          onMapAdded: (name, thumbnail, fullBytes) {
-            if (fullBytes != null) {
-              // Guardamos la copia original "sagrada" en el caché
-              MapStore.bytesCache[name] = Uint8List.fromList(fullBytes);
-              debugPrint('MapStore: Guardados ${fullBytes.length} bytes SAGRADOS para $name');
-            }
-            setState(() {
-              _mockMaps.insert(0, {
-                'title': name,
-                'date': '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                'status': MapSpatialStatus.outside,
-                'thumbnailBytes': thumbnail,
-              });
-            });
-          },
-        ),
+        onPressed: () => _onAddPressed(),
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -189,15 +186,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
         selectedLabelStyle: DesignSystem.labelCaps,
         unselectedLabelStyle: DesignSystem.labelCaps,
         onTap: (index) {
-          if (index == 1) Navigator.pushReplacementNamed(context, '/satellite');
+          if (index == 0) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Funcionalidad de Satélite próximamente')),
+          );
         },
-        items: const [
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.folder), label: 'Biblioteca'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.folder),
-            label: 'Biblioteca',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.satellite_alt),
+            icon: Icon(Icons.satellite_alt, color: Colors.white.withOpacity(0.05)),
             label: 'Satélite',
           ),
         ],
@@ -205,90 +202,295 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  void _downloadMap(String title, Uint8List? bytes) {
-    debugPrint('Intentando descargar: $title');
-    debugPrint('Bytes disponibles: ${bytes != null ? bytes.length : 'null'}');
-
-    if (bytes == null || bytes.isEmpty) {
-      String reason = (bytes == null) ? 'Datos nulos' : 'Archivo vacío';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se puede descargar ($reason). Los mapas de ejemplo no tienen archivo físico.')),
+  void _onAddPressed() {
+    if (isMapsTab) {
+      AddMapOverlay.show(
+        context,
+        onMapAdded: (name, thumbnail, fullBytes) {
+          if (fullBytes != null) {
+            MapStore.bytesCache[name] = Uint8List.fromList(fullBytes);
+          }
+          setState(() {
+            _mockMaps.insert(0, {
+              'title': name,
+              'date': '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+              'status': MapSpatialStatus.outside,
+              'thumbnailBytes': thumbnail,
+            });
+          });
+        },
       );
-      return;
-    }
-
-    try {
-      // PROCESO DE DESCARGA REAL PARA WEB
-      final String fileName = title.toLowerCase().endsWith('.pdf') ? title : '$title.pdf';
-      final bytesList = bytes.toList();
-      
-      js.context.callMethod('eval', [
-        """
-        console.log('Iniciando descarga desde JS...');
-        var blob = new Blob([new Uint8Array($bytesList)], {type: 'application/pdf'});
-        var link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.download = '$fileName';
-        link.click();
-        window.URL.revokeObjectURL(link.href);
-        console.log('Descarga completada');
-        """
-      ]);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Descargando $fileName...'),
-          backgroundColor: DesignSystem.primary,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      // Fallback si el JS falla (algunos navegadores)
-      debugPrint('Error en descarga: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al procesar descarga: $e')),
-      );
+    } else {
+      _showAddLayerDialog();
     }
   }
 
-  void _confirmDelete(int index) {
-    final mapToDelete = _filteredMaps[index];
-    final originalIndex = _mockMaps.indexOf(mapToDelete);
+  void _showAddLayerDialog() {
+    final controller = TextEditingController();
+    String? errorText;
 
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: DesignSystem.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusLg)),
+          title: const Row(
+            children: [
+              Icon(Icons.layers_outlined, color: DesignSystem.primary),
+              SizedBox(width: 12),
+              Text('Nueva Capa', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('¿Deseas agregar una nueva capa de información?', style: TextStyle(color: Colors.white70)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: controller,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Nombre de la capa',
+                  hintStyle: const TextStyle(color: Colors.white24),
+                  errorText: errorText,
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                    borderSide: BorderSide(color: DesignSystem.outline),
+                  ),
+                ),
+                onChanged: (value) {
+                  if (errorText != null) setDialogState(() => errorText = null);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCELAR', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignSystem.primary,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusSm)),
+              ),
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isEmpty) return;
+
+                // VALIDACIÓN: Verificar si el nombre ya existe
+                bool exists = _mockLayers.any((l) => l['title'].toString().toLowerCase() == name.toLowerCase());
+                
+                if (exists) {
+                  setDialogState(() => errorText = 'Ya existe una capa con este nombre');
+                  return;
+                }
+
+                setState(() {
+                  _mockLayers.insert(0, {
+                    'title': name,
+                    'objects': 0,
+                  });
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('CREAR CAPA'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRenameLayerDialog(int index) {
+    final layer = _filteredLayers[index];
+    final controller = TextEditingController(text: layer['title']);
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: DesignSystem.surface,
+          title: const Text('Renombrar Capa', style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: controller,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Nuevo nombre',
+              errorText: errorText,
+              filled: true,
+              fillColor: Colors.white10,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onChanged: (value) {
+              if (errorText != null) setDialogState(() => errorText = null);
+            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+            ElevatedButton(
+              onPressed: () {
+                final newName = controller.text.trim();
+                if (newName.isEmpty || newName == layer['title']) {
+                  Navigator.pop(context);
+                  return;
+                }
+
+                // VALIDACIÓN: Verificar si el nuevo nombre ya existe (excluyendo la capa actual)
+                bool exists = _mockLayers.any((l) => 
+                  l != layer && l['title'].toString().toLowerCase() == newName.toLowerCase()
+                );
+
+                if (exists) {
+                  setDialogState(() => errorText = 'Ese nombre ya está en uso');
+                  return;
+                }
+
+                setState(() {
+                  layer['title'] = newName;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('GUARDAR'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyStatePlaceholder(String type) {
+    final bool isMap = type == 'mapas';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
+      child: Column(
+        children: [
+          Opacity(
+            opacity: 0.4,
+            child: DottedBorder(
+              color: Colors.white24,
+              strokeWidth: 2,
+              dashPattern: const [8, 4],
+              borderType: BorderType.RRect,
+              radius: const Radius.circular(DesignSystem.radiusDefault),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(DesignSystem.spacingMd),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                      ),
+                      child: Icon(
+                        isMap ? Icons.map_outlined : Icons.layers_outlined,
+                        color: Colors.white24,
+                      ),
+                    ),
+                    const SizedBox(width: DesignSystem.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 14,
+                            width: 150,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 10,
+                            width: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: DesignSystem.spacingLg),
+          Text(
+            'No hay $type cargadas',
+            style: const TextStyle(color: Colors.white38, fontSize: 16),
+          ),
+          Text(
+            'Usa el botón + para añadir tu primera ${isMap ? "mapa" : "capa"}',
+            style: const TextStyle(color: Colors.white24, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _downloadMap(String title, Uint8List? bytes) {
+    if (bytes == null || bytes.isEmpty) return;
+    try {
+      final bytesList = bytes.toList();
+      js.context.callMethod('eval', [
+        """
+        var blob = new Blob([new Uint8Array($bytesList)], {type: 'application/pdf'});
+        var link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = '$title.pdf';
+        link.click();
+        window.URL.revokeObjectURL(link.href);
+        """
+      ]);
+    } catch (e) {
+      debugPrint('Error descarga: $e');
+    }
+  }
+
+  void _confirmDeleteMap(int index) {
+    final map = _filteredMaps[index];
+    _showDeleteDialog(map['title'], () {
+      setState(() => _mockMaps.remove(map));
+    });
+  }
+
+  void _confirmDeleteLayer(int index) {
+    final layer = _filteredLayers[index];
+    _showDeleteDialog(layer['title'], () {
+      setState(() => _mockLayers.remove(layer));
+    });
+  }
+
+  void _showDeleteDialog(String title, VoidCallback onDelete) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: DesignSystem.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusLg)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: DesignSystem.error),
-            SizedBox(width: 12),
-            Text('¿Eliminar mapa?', style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Text(
-          '¿Estás seguro de que deseas eliminar "${mapToDelete['title']}"?',
-          style: const TextStyle(color: Colors.white70),
-        ),
+        title: const Text('¿Eliminar?', style: TextStyle(color: Colors.white)),
+        content: Text('¿Deseas eliminar "$title"?', style: const TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCELAR', style: TextStyle(color: Colors.white54)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DesignSystem.error,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusSm)),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.error),
             onPressed: () {
-              setState(() {
-                _mockMaps.removeAt(originalIndex);
-              });
+              onDelete();
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Mapa eliminado')),
-              );
             },
             child: const Text('ELIMINAR'),
           ),
