@@ -8,6 +8,7 @@ import '../widgets/map_list_item.dart';
 import '../widgets/layer_list_item.dart';
 import 'add_map_overlay.dart';
 import '../services/map_data_service.dart';
+import '../services/layer_store.dart';
 
 class MapStore {
   static Map<String, Uint8List> bytesCache = {};
@@ -27,7 +28,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String _searchQuery = '';
 
   final List<Map<String, dynamic>> _mockMaps = [];
-  final List<Map<String, dynamic>> _mockLayers = [];
 
   bool get isMapsTab => _selectedSegment == 0;
 
@@ -39,8 +39,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredLayers {
-    if (_searchQuery.isEmpty) return _mockLayers;
-    return _mockLayers.where((layer) => 
+    if (_searchQuery.isEmpty) return LayerStore.layers;
+    return LayerStore.layers.where((layer) => 
       layer['title'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
     ).toList();
   }
@@ -51,6 +51,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        surfaceTintColor: Colors.transparent,
         title: _isSearching 
           ? TextField(
               controller: _searchController,
@@ -92,87 +93,92 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ],
       ),
       drawer: const SidebarMenu(),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(DesignSystem.spacingMd),
-            child: Container(
-              padding: const EdgeInsets.all(DesignSystem.spacingXs),
-              decoration: BoxDecoration(
-                color: DesignSystem.surfaceContainer,
-                borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
-                border: Border.all(color: DesignSystem.outline),
-              ),
-              child: Row(
-                children: [
-                  _buildSegment('Mapas', 0),
-                  _buildSegment('Capas', 1),
-                ],
+      body: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(DesignSystem.spacingMd),
+              child: Container(
+                padding: const EdgeInsets.all(DesignSystem.spacingXs),
+                decoration: BoxDecoration(
+                  color: DesignSystem.surfaceContainer,
+                  borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                  border: Border.all(color: DesignSystem.outline),
+                ),
+                child: Row(
+                  children: [
+                    _buildSegment('Mapas', 0),
+                    _buildSegment('Capas', 1),
+                  ],
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
-            child: Text(
-              '${isMapsTab ? "MAPAS" : "CAPAS"} DISPONIBLES (${currentList.length})',
-              style: DesignSystem.labelCaps.copyWith(color: Colors.white54),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
+              child: Text(
+                '${isMapsTab ? "MAPAS" : "CAPAS"} DISPONIBLES (${currentList.length})',
+                style: DesignSystem.labelCaps.copyWith(color: Colors.white54),
+              ),
             ),
-          ),
-          const SizedBox(height: DesignSystem.spacingMd),
-          Expanded(
-            child: currentList.isEmpty && !_isSearching
-                ? _buildEmptyStatePlaceholder(isMapsTab ? 'mapas' : 'capas')
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
-                    itemCount: currentList.length,
-                    itemBuilder: (context, index) {
-                      final item = currentList[index];
-                      final String title = item['title'];
-                      
-                      if (isMapsTab) {
-                        return MapListItem(
-                          title: title,
-                          dateAdded: item['date'],
-                          status: item['status'],
-                          thumbnailBytes: item['thumbnailBytes'],
-                          onTap: () {
-                            final bytes = MapStore.bytesCache[title];
-                            if (bytes != null) {
-                              MapDataService().setCurrentMap(title, Uint8List.fromList(bytes));
-                            }
-                            Navigator.pushNamed(context, '/detail');
-                          },
-                          onDownload: () {
-                            final bytes = MapStore.bytesCache[title];
-                            if (bytes != null) {
-                              _downloadMap(title, Uint8List.fromList(bytes));
-                            } else {
-                              _downloadMap(title, null);
-                            }
-                          },
-                          onDelete: () => _confirmDeleteMap(index),
-                        );
-                      } else {
-                        return LayerListItem(
-                          title: title,
-                          objectCount: item['objects'] ?? 0,
-                          onTap: () {
-                            // Acción al tocar una capa
-                          },
-                          onDelete: () => _confirmDeleteLayer(index),
-                          onRename: () => _showRenameLayerDialog(index),
-                          onExport: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Exportando capa "$title"...')),
-                            );
-                          },
-                        );
-                      }
-                    },
-                  ),
-          ),
-        ],
+            const SizedBox(height: DesignSystem.spacingMd),
+            Expanded(
+              child: currentList.isEmpty && !_isSearching
+                  ? _buildEmptyStatePlaceholder(isMapsTab ? 'mapas' : 'capas')
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
+                      itemCount: currentList.length,
+                      itemBuilder: (context, index) {
+                        final item = currentList[index];
+                        final String title = item['title'];
+                        
+                        if (isMapsTab) {
+                          return MapListItem(
+                            title: title,
+                            dateAdded: item['date'],
+                            status: item['status'],
+                            thumbnailBytes: item['thumbnailBytes'],
+                            onTap: () {
+                              final bytes = MapStore.bytesCache[title];
+                              if (bytes != null) {
+                                MapDataService().setCurrentMap(title, Uint8List.fromList(bytes));
+                              }
+                              Navigator.pushNamed(context, '/detail');
+                            },
+                            onDownload: () {
+                              final bytes = MapStore.bytesCache[title];
+                              if (bytes != null) {
+                                _downloadMap(title, Uint8List.fromList(bytes));
+                              } else {
+                                _downloadMap(title, null);
+                              }
+                            },
+                            onDelete: () => _confirmDeleteMap(index),
+                          );
+                        } else {
+                          return LayerListItem(
+                            title: title,
+                            objectCount: item['objects'] ?? 0,
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context, 
+                                '/layer-objects',
+                                arguments: title,
+                              ).then((_) => setState(() {}));
+                            },
+                            onDelete: () => _confirmDeleteLayer(index),
+                            onRename: () => _showRenameLayerDialog(index),
+                            onExport: () {
+                              // Acción de exportar sin globos
+                            },
+                          );
+                        }
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _onAddPressed(),
@@ -253,14 +259,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Nombre de la capa',
-                  hintStyle: const TextStyle(color: Colors.white24),
                   errorText: errorText,
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.05),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
-                    borderSide: BorderSide(color: DesignSystem.outline),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusSm)),
                 ),
                 onChanged: (value) {
                   if (errorText != null) setDialogState(() => errorText = null);
@@ -269,33 +271,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('CANCELAR', style: TextStyle(color: Colors.white54)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DesignSystem.primary,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusSm)),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.primary, foregroundColor: Colors.black),
               onPressed: () {
                 final name = controller.text.trim();
                 if (name.isEmpty) return;
-
-                // VALIDACIÓN: Verificar si el nombre ya existe
-                bool exists = _mockLayers.any((l) => l['title'].toString().toLowerCase() == name.toLowerCase());
                 
-                if (exists) {
+                if (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == name.toLowerCase())) {
                   setDialogState(() => errorText = 'Ya existe una capa con este nombre');
                   return;
                 }
 
                 setState(() {
-                  _mockLayers.insert(0, {
+                  LayerStore.layers.insert(0, {
                     'title': name,
                     'objects': 0,
                   });
+                  LayerStore.initializeLayer(name);
                 });
                 Navigator.pop(context);
               },
@@ -321,13 +314,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           content: TextField(
             controller: controller,
             style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Nuevo nombre',
-              errorText: errorText,
-              filled: true,
-              fillColor: Colors.white10,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            ),
+            decoration: InputDecoration(hintText: 'Nuevo nombre', errorText: errorText),
             onChanged: (value) {
               if (errorText != null) setDialogState(() => errorText = null);
             },
@@ -341,19 +328,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   Navigator.pop(context);
                   return;
                 }
-
-                // VALIDACIÓN: Verificar si el nuevo nombre ya existe (excluyendo la capa actual)
-                bool exists = _mockLayers.any((l) => 
-                  l != layer && l['title'].toString().toLowerCase() == newName.toLowerCase()
-                );
-
-                if (exists) {
+                if (LayerStore.layers.any((l) => l != layer && l['title'].toString().toLowerCase() == newName.toLowerCase())) {
                   setDialogState(() => errorText = 'Ese nombre ya está en uso');
                   return;
                 }
-
                 setState(() {
+                  final oldName = layer['title'];
                   layer['title'] = newName;
+                  // Actualizar también el mapa de objetos
+                  if (LayerStore.layerObjects.containsKey(oldName)) {
+                    LayerStore.layerObjects[newName] = LayerStore.layerObjects.remove(oldName)!;
+                  }
                 });
                 Navigator.pop(context);
               },
@@ -473,7 +458,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void _confirmDeleteLayer(int index) {
     final layer = _filteredLayers[index];
     _showDeleteDialog(layer['title'], () {
-      setState(() => _mockLayers.remove(layer));
+      setState(() {
+        LayerStore.layers.remove(layer);
+        LayerStore.layerObjects.remove(layer['title']);
+      });
     });
   }
 

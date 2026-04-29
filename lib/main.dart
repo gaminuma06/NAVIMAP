@@ -6,6 +6,7 @@ import 'screens/satellite_view_screen.dart';
 import 'screens/map_detail_screen.dart';
 import 'screens/layer_manager_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/layer_objects_screen.dart';
 
 void main() {
   runApp(const NaviMapApp());
@@ -49,6 +50,15 @@ class NaviMapApp extends StatelessWidget {
         ),
       ),
       initialRoute: '/',
+      onGenerateRoute: (settings) {
+        if (settings.name == '/layer-objects') {
+          final args = settings.arguments as String;
+          return MaterialPageRoute(
+            builder: (context) => LayerObjectsScreen(layerName: args),
+          );
+        }
+        return null;
+      },
       routes: {
         '/': (context) => const LibraryScreen(),
         '/satellite': (context) => const SatelliteViewScreen(),
