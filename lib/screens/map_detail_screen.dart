@@ -40,6 +40,14 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     }
   }
 
+  void _openMapLayers() {
+    Navigator.pushNamed(
+      context, 
+      '/map-layers',
+      arguments: _mapTitle,
+    ).then((_) => setState(() {}));
+  }
+
   @override
   void dispose() {
     _pdfController?.dispose();
@@ -51,6 +59,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
+        surfaceTintColor: Colors.transparent,
         backgroundColor: const Color(0xFF0D0D0D),
         elevation: 0,
         centerTitle: true,
@@ -72,18 +81,16 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       ),
       body: Stack(
         children: [
-          // Fondo Gris del Mapa
           Container(color: Colors.grey[600]),
-
           _pdfController == null
               ? const Center(child: CircularProgressIndicator(color: DesignSystem.primary))
               : Positioned.fill(
                   child: InteractiveViewer(
                     panEnabled: true,
                     scaleEnabled: true,
-                    minScale: 1.0, // El mapa siempre ocupará al menos la pantalla
+                    minScale: 1.0,
                     maxScale: 50.0,
-                    boundaryMargin: const EdgeInsets.all(50), // Margen pequeño para que se sienta el tope
+                    boundaryMargin: const EdgeInsets.all(50),
                     constrained: true,
                     child: IgnorePointer(
                       child: PdfView(
@@ -99,76 +106,46 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                     ),
                   ),
                 ),
-
-          // Mira (Crosshair) Central - Se mantiene fija sobre el visor
-          IgnorePointer(
-            child: Center(
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black.withOpacity(0.3), width: 1),
-                ),
+          
+          // Retícula central (Mira de precisión)
+          Center(
+            child: IgnorePointer(
+              child: SizedBox(
+                width: 36,
+                height: 36,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Container(width: 20, height: 1, color: Colors.black.withOpacity(0.3)),
-                    Container(width: 1, height: 20, color: Colors.black.withOpacity(0.3)),
                     Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: DesignSystem.primary.withOpacity(0.4), width: 1),
+                      ),
                     ),
+                    Container(width: 1.5, height: 16, color: DesignSystem.primary.withOpacity(0.6)),
+                    Container(width: 16, height: 1.5, color: DesignSystem.primary.withOpacity(0.6)),
                   ],
                 ),
               ),
             ),
           ),
-
-          // Botón Compás (Arriba Derecha)
+          
           Positioned(
             top: 20,
             right: 20,
             child: _buildCircularButton(Icons.navigation_outlined),
           ),
 
-          // Escala (Abajo Izquierda)
-          Positioned(
-            bottom: 100,
-            left: 20,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('500 m', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Container(
-                  width: 60,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      left: BorderSide(color: Colors.white, width: 2),
-                      bottom: BorderSide(color: Colors.white, width: 2),
-                      right: BorderSide(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Botón Ubicación (Abajo Derecha)
           Positioned(
             bottom: 100,
             right: 20,
             child: _buildCircularButton(Icons.location_on),
           ),
 
-          // Barra Inferior de Herramientas
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
+            bottom: 0, left: 0, right: 0,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               color: const Color(0xFF0D0D0D),
@@ -192,7 +169,10 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.layers_outlined, color: DesignSystem.primary),
+                    GestureDetector(
+                      onTap: _openMapLayers,
+                      child: const Icon(Icons.layers_outlined, color: DesignSystem.primary),
+                    ),
                   ],
                 ),
               ),
@@ -205,18 +185,13 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
   Widget _buildCircularButton(IconData icon) {
     return Container(
-      width: 50,
-      height: 50,
+      width: 50, height: 50,
       decoration: const BoxDecoration(
         color: Color(0xFF0D0D0D),
         shape: BoxShape.circle,
         boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 2))],
       ),
-      child: Icon(
-        icon,
-        color: DesignSystem.primary,
-        size: 26,
-      ),
+      child: Icon(icon, color: DesignSystem.primary, size: 26),
     );
   }
 }

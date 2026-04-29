@@ -1,23 +1,34 @@
 import 'package:flutter/material.dart';
 import '../theme/design_system.dart';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:pdfx/pdfx.dart';
 import 'dart:typed_data';
 
 class AddMapOverlay extends StatelessWidget {
+  final Function(String name) onMapProcessingStarted;
   final Function(String name, Uint8List? thumbnail, Uint8List? fullBytes) onMapAdded;
 
-  const AddMapOverlay({super.key, required this.onMapAdded});
+  const AddMapOverlay({
+    super.key, 
+    required this.onMapProcessingStarted,
+    required this.onMapAdded,
+  });
 
-  static void show(BuildContext context, {required Function(String name, Uint8List? thumbnail, Uint8List? fullBytes) onMapAdded}) {
+  static void show(
+    BuildContext context, {
+    required Function(String name) onMapProcessingStarted,
+    required Function(String name, Uint8List? thumbnail, Uint8List? fullBytes) onMapAdded,
+  }) {
     showModalBottomSheet(
       context: context,
       backgroundColor: DesignSystem.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(DesignSystem.radiusLg)),
       ),
-      builder: (context) => AddMapOverlay(onMapAdded: onMapAdded),
+      builder: (context) => AddMapOverlay(
+        onMapProcessingStarted: onMapProcessingStarted,
+        onMapAdded: onMapAdded,
+      ),
     );
   }
 
@@ -36,40 +47,40 @@ class AddMapOverlay extends StatelessWidget {
               withData: true,
             );
 
-              if (result != null && result.files.single.bytes != null) {
-                final rawBytes = result.files.single.bytes!;
-                if (rawBytes.isEmpty) return;
+            if (result != null && result.files.single.bytes != null) {
+              final rawBytes = result.files.single.bytes!;
+              if (rawBytes.isEmpty) return;
 
-                // CLONACIÓN PROACTIVA: Creamos copias ANTES de procesar nada
-                final Uint8List bytesForThumbnail = Uint8List.fromList(rawBytes);
-                final Uint8List bytesForLibrary = Uint8List.fromList(rawBytes);
+              String fileName = result.files.single.name;
+              
+              // Notificar que empezamos el procesamiento pesado
+              onMapProcessingStarted(fileName);
+
+              final Uint8List bytesForThumbnail = Uint8List.fromList(rawBytes);
+              final Uint8List bytesForLibrary = Uint8List.fromList(rawBytes);
+              
+              Uint8List? thumbnail;
+
+              try {
+                // Simular un pequeño retardo si el archivo es muy ligero para que se vea la barra
+                await Future.delayed(const Duration(milliseconds: 800));
                 
-                debugPrint('Iniciando procesamiento con ${bytesForLibrary.length} bytes');
-                
-                String fileName = result.files.single.name;
-                Uint8List? thumbnail;
-
-                try {
-                  // La librería consumirá 'bytesForThumbnail', pero 'bytesForLibrary' quedará intacto
-                  final document = await PdfDocument.openData(bytesForThumbnail);
-                  final page = await document.getPage(1);
-                  final pageImage = await page.render(
-                    width: 200,
-                    height: 200,
-                    format: PdfPageImageFormat.png,
-                  );
-                  thumbnail = pageImage?.bytes;
-                  await page.close();
-                  await document.close();
-                  debugPrint('Miniatura generada con éxito');
-                } catch (e) {
-                  debugPrint('Error generando miniatura: $e');
-                }
-
-                // Enviamos la copia que NO ha sido tocada por la librería de PDF
-                onMapAdded(fileName, thumbnail, bytesForLibrary);
-                debugPrint('Mapa enviado a la biblioteca de forma segura');
+                final document = await PdfDocument.openData(bytesForThumbnail);
+                final page = await document.getPage(1);
+                final pageImage = await page.render(
+                  width: 200,
+                  height: 200,
+                  format: PdfPageImageFormat.png,
+                );
+                thumbnail = pageImage?.bytes;
+                await page.close();
+                await document.close();
+              } catch (e) {
+                debugPrint('Error generando miniatura: $e');
               }
+
+              onMapAdded(fileName, thumbnail, bytesForLibrary);
+            }
           }),
         ],
       ),
