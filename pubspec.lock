@@ -151,7 +151,7 @@ packages:
     source: sdk
     version: "0.0.0"
   flutter_compass:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_compass
       sha256: "1b4d7e6c95a675ec8482b5c9c9ccf1ebf0ced3dbec59dce28ad609da953de850"
@@ -561,7 +561,7 @@ packages:
     source: hosted
     version: "1.0.1"
   proj4dart:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: proj4dart
       sha256: c8a659ac9b6864aa47c171e78d41bbe6f5e1d7bd790a5814249e6b68bc44324e
