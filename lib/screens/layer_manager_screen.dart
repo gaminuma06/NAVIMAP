@@ -26,13 +26,17 @@ class LayerManagerScreen extends StatelessWidget {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0, // This is a bit ambiguous in the spec, but we'll use 0 for layers
+        currentIndex:
+            0, // This is a bit ambiguous in the spec, but we'll use 0 for layers
         backgroundColor: DesignSystem.surface,
         selectedItemColor: DesignSystem.primary,
         unselectedItemColor: Colors.white24,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.map), label: 'MAPAS'),
-          BottomNavigationBarItem(icon: Icon(Icons.satellite_alt), label: 'SATÉLITE'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.satellite_alt),
+            label: 'SATÉLITE',
+          ),
         ],
         onTap: (index) {
           if (index == 0) Navigator.pushReplacementNamed(context, '/');

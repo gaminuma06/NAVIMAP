@@ -9,7 +9,7 @@ class DesignSystem {
   static const Color error = Color(0xFFFF3D00); // Alert Orange
   static const Color onSurface = Color(0xFFE5E2E1);
   static const Color outline = Color(0xFF333333);
-  
+
   // Spacing
   static const double spacingUnit = 4.0;
   static const double spacingXs = 4.0;
@@ -17,7 +17,7 @@ class DesignSystem {
   static const double spacingMd = 16.0;
   static const double spacingLg = 24.0;
   static const double spacingXl = 32.0;
-  
+
   // Radius
   static const double radiusSm = 2.0;
   static const double radiusDefault = 4.0;

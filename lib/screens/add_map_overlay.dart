@@ -6,10 +6,11 @@ import 'dart:typed_data';
 
 class AddMapOverlay extends StatelessWidget {
   final Function(String name) onMapProcessingStarted;
-  final Function(String name, Uint8List? thumbnail, Uint8List? fullBytes) onMapAdded;
+  final Function(String name, Uint8List? thumbnail, Uint8List? fullBytes)
+  onMapAdded;
 
   const AddMapOverlay({
-    super.key, 
+    super.key,
     required this.onMapProcessingStarted,
     required this.onMapAdded,
   });
@@ -17,13 +18,16 @@ class AddMapOverlay extends StatelessWidget {
   static void show(
     BuildContext context, {
     required Function(String name) onMapProcessingStarted,
-    required Function(String name, Uint8List? thumbnail, Uint8List? fullBytes) onMapAdded,
+    required Function(String name, Uint8List? thumbnail, Uint8List? fullBytes)
+    onMapAdded,
   }) {
     showModalBottomSheet(
       context: context,
       backgroundColor: DesignSystem.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(DesignSystem.radiusLg)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignSystem.radiusLg),
+        ),
       ),
       builder: (context) => AddMapOverlay(
         onMapProcessingStarted: onMapProcessingStarted,
@@ -40,54 +44,68 @@ class AddMapOverlay extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildOption(context, Icons.picture_as_pdf, 'IMPORTAR GEOPDF', () async {
-            FilePickerResult? result = await FilePicker.platform.pickFiles(
-              type: FileType.custom,
-              allowedExtensions: ['pdf'],
-              withData: true,
-            );
+          _buildOption(
+            context,
+            Icons.picture_as_pdf,
+            'IMPORTAR GEOPDF',
+            () async {
+              FilePickerResult? result = await FilePicker.platform.pickFiles(
+                type: FileType.custom,
+                allowedExtensions: ['pdf'],
+                withData: true,
+              );
 
-            if (result != null && result.files.single.bytes != null) {
-              final rawBytes = result.files.single.bytes!;
-              if (rawBytes.isEmpty) return;
+              if (result != null && result.files.single.bytes != null) {
+                final rawBytes = result.files.single.bytes!;
+                if (rawBytes.isEmpty) return;
 
-              String fileName = result.files.single.name;
-              
-              // Notificar que empezamos el procesamiento pesado
-              onMapProcessingStarted(fileName);
+                String fileName = result.files.single.name;
 
-              final Uint8List bytesForThumbnail = Uint8List.fromList(rawBytes);
-              final Uint8List bytesForLibrary = Uint8List.fromList(rawBytes);
-              
-              Uint8List? thumbnail;
+                // Notificar que empezamos el procesamiento pesado
+                onMapProcessingStarted(fileName);
 
-              try {
-                // Simular un pequeño retardo si el archivo es muy ligero para que se vea la barra
-                await Future.delayed(const Duration(milliseconds: 800));
-                
-                final document = await PdfDocument.openData(bytesForThumbnail);
-                final page = await document.getPage(1);
-                final pageImage = await page.render(
-                  width: 200,
-                  height: 200,
-                  format: PdfPageImageFormat.png,
+                final Uint8List bytesForThumbnail = Uint8List.fromList(
+                  rawBytes,
                 );
-                thumbnail = pageImage?.bytes;
-                await page.close();
-                await document.close();
-              } catch (e) {
-                debugPrint('Error generando miniatura: $e');
-              }
+                final Uint8List bytesForLibrary = Uint8List.fromList(rawBytes);
 
-              onMapAdded(fileName, thumbnail, bytesForLibrary);
-            }
-          }),
+                Uint8List? thumbnail;
+
+                try {
+                  // Simular un pequeño retardo si el archivo es muy ligero para que se vea la barra
+                  await Future.delayed(const Duration(milliseconds: 800));
+
+                  final document = await PdfDocument.openData(
+                    bytesForThumbnail,
+                  );
+                  final page = await document.getPage(1);
+                  final pageImage = await page.render(
+                    width: 200,
+                    height: 200,
+                    format: PdfPageImageFormat.png,
+                  );
+                  thumbnail = pageImage?.bytes;
+                  await page.close();
+                  await document.close();
+                } catch (e) {
+                  debugPrint('Error generando miniatura: $e');
+                }
+
+                onMapAdded(fileName, thumbnail, bytesForLibrary);
+              }
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildOption(BuildContext context, IconData icon, String label, VoidCallback onTap) {
+  Widget _buildOption(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
     return ListTile(
       leading: Icon(icon, color: Colors.white70),
       title: Text(label, style: DesignSystem.bodyMd),

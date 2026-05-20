@@ -6,7 +6,7 @@ class LayerStore {
 
   // --- BIBLIOTECAS POR MAPA ---
   static Map<String, List<Map<String, dynamic>>> mapLayers = {};
-  
+
   // ALMACENAMIENTO UNIFICADO DE OBJETOS
   static Map<String, List<Map<String, dynamic>>> mapLayerObjects = {};
 
@@ -20,7 +20,10 @@ class LayerStore {
   }
 
   // Obtiene los objetos de forma SEGURA
-  static List<Map<String, dynamic>> getObjects(String layerName, {String? mapContext}) {
+  static List<Map<String, dynamic>> getObjects(
+    String layerName, {
+    String? mapContext,
+  }) {
     final key = mapContext == null ? layerName : '${mapContext}_$layerName';
     if (!mapLayerObjects.containsKey(key)) {
       mapLayerObjects[key] = [];
@@ -35,7 +38,9 @@ class LayerStore {
     }
 
     // Asegurar que exista en el RESPALDO GLOBAL
-    if (!layers.any((l) => l['title'].toString().toLowerCase() == layerName.toLowerCase())) {
+    if (!layers.any(
+      (l) => l['title'].toString().toLowerCase() == layerName.toLowerCase(),
+    )) {
       layers.insert(0, {'title': layerName, 'objects': 0});
       if (!mapLayerObjects.containsKey(layerName)) {
         mapLayerObjects[layerName] = [];
@@ -43,10 +48,15 @@ class LayerStore {
     }
   }
 
-  static void addObject(String layerName, Map<String, dynamic> object, {String? mapContext, bool isSyncCall = false}) {
+  static void addObject(
+    String layerName,
+    Map<String, dynamic> object, {
+    String? mapContext,
+    bool isSyncCall = false,
+  }) {
     initializeLayer(layerName, mapContext: mapContext);
     final objects = getObjects(layerName, mapContext: mapContext);
-    
+
     // Evitar duplicados exactos
     if (!_containsObject(objects, object)) {
       objects.insert(0, object);
@@ -64,13 +74,23 @@ class LayerStore {
       for (var contextKey in mapLayers.keys) {
         final currentMapLayers = mapLayers[contextKey]!;
         if (currentMapLayers.any((l) => l['title'] == layerName)) {
-          addObject(layerName, Map<String, dynamic>.from(object), mapContext: contextKey, isSyncCall: true);
+          addObject(
+            layerName,
+            Map<String, dynamic>.from(object),
+            mapContext: contextKey,
+            isSyncCall: true,
+          );
         }
       }
     }
   }
 
-  static void removeObject(String layerName, int index, {String? mapContext, bool isSyncCall = false}) {
+  static void removeObject(
+    String layerName,
+    int index, {
+    String? mapContext,
+    bool isSyncCall = false,
+  }) {
     final objects = getObjects(layerName, mapContext: mapContext);
     if (index < objects.length) {
       final objectToRemove = objects[index];
@@ -96,16 +116,20 @@ class LayerStore {
     }
   }
 
-  static void duplicateObject(String layerName, int index, {String? mapContext}) {
+  static void duplicateObject(
+    String layerName,
+    int index, {
+    String? mapContext,
+  }) {
     final objects = getObjects(layerName, mapContext: mapContext);
     if (objects.length > index) {
       final original = objects[index];
       final copy = Map<String, dynamic>.from(original);
-      
+
       String baseName = original['name'];
       final copyPattern = RegExp(r' \(copia( \d+)?\)$');
       baseName = baseName.replaceFirst(copyPattern, '');
-      
+
       int nextNum = 1;
       for (var obj in objects) {
         String name = obj['name'];
@@ -119,13 +143,18 @@ class LayerStore {
         }
       }
       copy['name'] = '$baseName (copia${nextNum == 1 ? "" : " $nextNum"})';
-      
+
       // Añadir el duplicado (addObject manejará la sincronización sin bucles)
       addObject(layerName, copy, mapContext: mapContext);
     }
   }
 
-  static void copyObjectToLayer(String fromLayer, int index, String toLayer, {String? mapContext}) {
+  static void copyObjectToLayer(
+    String fromLayer,
+    int index,
+    String toLayer, {
+    String? mapContext,
+  }) {
     final objects = getObjects(fromLayer, mapContext: mapContext);
     if (objects.length > index) {
       final objectToCopy = Map<String, dynamic>.from(objects[index]);
@@ -135,16 +164,19 @@ class LayerStore {
 
   static void importLayerWithObjects(String layerName, String mapContext) {
     initializeLayer(layerName, mapContext: mapContext);
-    
+
     final currentMapLayers = getLayers(mapContext);
     if (!currentMapLayers.any((l) => l['title'] == layerName)) {
       final globalLayer = layers.firstWhere((l) => l['title'] == layerName);
-      currentMapLayers.add({'title': layerName, 'objects': globalLayer['objects']});
+      currentMapLayers.add({
+        'title': layerName,
+        'objects': globalLayer['objects'],
+      });
     }
 
     final globalObjects = getObjects(layerName, mapContext: null);
     final mapObjects = getObjects(layerName, mapContext: mapContext);
-    
+
     for (var obj in globalObjects) {
       if (!_containsObject(mapObjects, obj)) {
         mapObjects.add(Map<String, dynamic>.from(obj));
@@ -155,15 +187,21 @@ class LayerStore {
 
   // --- MÉTODOS DE APOYO PARA SINCRONIZACIÓN ---
 
-  static bool _containsObject(List<Map<String, dynamic>> list, Map<String, dynamic> obj) {
-    return list.any((item) => 
-      item['name'] == obj['name'] && item['value'] == obj['value']
+  static bool _containsObject(
+    List<Map<String, dynamic>> list,
+    Map<String, dynamic> obj,
+  ) {
+    return list.any(
+      (item) => item['name'] == obj['name'] && item['value'] == obj['value'],
     );
   }
 
-  static void _removeObjectFromList(List<Map<String, dynamic>> list, Map<String, dynamic> obj) {
-    list.removeWhere((item) => 
-      item['name'] == obj['name'] && item['value'] == obj['value']
+  static void _removeObjectFromList(
+    List<Map<String, dynamic>> list,
+    Map<String, dynamic> obj,
+  ) {
+    list.removeWhere(
+      (item) => item['name'] == obj['name'] && item['value'] == obj['value'],
     );
   }
 

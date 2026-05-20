@@ -9,7 +9,8 @@ class MapLoadingItem extends StatefulWidget {
   State<MapLoadingItem> createState() => _MapLoadingItemState();
 }
 
-class _MapLoadingItemState extends State<MapLoadingItem> with SingleTickerProviderStateMixin {
+class _MapLoadingItemState extends State<MapLoadingItem>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -20,9 +21,10 @@ class _MapLoadingItemState extends State<MapLoadingItem> with SingleTickerProvid
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat();
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -51,7 +53,11 @@ class _MapLoadingItemState extends State<MapLoadingItem> with SingleTickerProvid
               color: Colors.white10,
               borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
             ),
-            child: const Icon(Icons.upload_file, color: DesignSystem.primary, size: 30),
+            child: const Icon(
+              Icons.upload_file,
+              color: DesignSystem.primary,
+              size: 30,
+            ),
           ),
           const SizedBox(width: DesignSystem.spacingMd),
           Expanded(
@@ -79,7 +85,9 @@ class _MapLoadingItemState extends State<MapLoadingItem> with SingleTickerProvid
                       return LinearProgressIndicator(
                         value: _animation.value,
                         backgroundColor: Colors.white10,
-                        valueColor: const AlwaysStoppedAnimation<Color>(DesignSystem.primary),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          DesignSystem.primary,
+                        ),
                         minHeight: 4,
                       );
                     },

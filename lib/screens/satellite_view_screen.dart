@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../theme/design_system.dart';
 import '../widgets/sidebar_menu.dart';
+import '../widgets/user_location_marker.dart';
 
 class SatelliteViewScreen extends StatefulWidget {
   const SatelliteViewScreen({super.key});
@@ -15,7 +16,9 @@ class SatelliteViewScreen extends StatefulWidget {
 class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   final MapController _mapController = MapController();
   LatLng _currentLocation = const LatLng(0, 0);
+  double _heading = 0.0;
   bool _isDrawing = false;
+  bool _initialLocationSet = false;
   List<LatLng> _drawPoints = [];
 
   @override
@@ -33,10 +36,18 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
-    
+
     Geolocator.getPositionStream().listen((Position position) {
+      if (!mounted) return;
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
+        _heading = position.heading;
+
+        // Auto centrar como Google Maps la primera vez que se tiene señal GPS
+        if (!_initialLocationSet) {
+          _initialLocationSet = true;
+          _mapController.move(_currentLocation, 17.0);
+        }
       });
     });
   }
@@ -60,21 +71,18 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
+                urlTemplate:
+                    'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+                userAgentPackageName: 'com.navimap.app',
               ),
               if (_currentLocation.latitude != 0)
                 MarkerLayer(
                   markers: [
                     Marker(
                       point: _currentLocation,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(
-                        Icons.radio_button_checked,
-                        color: DesignSystem.secondary,
-                        size: 20,
-                      ),
+                      width: 60,
+                      height: 60,
+                      child: UserLocationMarker(heading: _heading),
                     ),
                   ],
                 ),
@@ -90,11 +98,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             ],
           ),
           // HUD
-          Positioned(
-            top: 50,
-            left: 20,
-            child: _buildTelemetryPanel(),
-          ),
+          Positioned(top: 50, left: 20, child: _buildTelemetryPanel()),
           // Top Buttons
           Positioned(
             top: 50,
@@ -150,8 +154,14 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           if (index == 0) Navigator.pushReplacementNamed(context, '/');
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.folder), label: 'Biblioteca'),
-          BottomNavigationBarItem(icon: Icon(Icons.satellite_alt), label: 'Satélite'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.folder),
+            label: 'Biblioteca',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.satellite_alt),
+            label: 'Satélite',
+          ),
         ],
       ),
     );
@@ -170,14 +180,27 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
         children: [
           Row(
             children: [
-              Container(width: 8, height: 8, decoration: const BoxDecoration(color: DesignSystem.primary, shape: BoxShape.circle)),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: DesignSystem.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
               const SizedBox(width: 8),
               const Text('TELEMETRY ACTIVE', style: DesignSystem.labelCaps),
             ],
           ),
           const SizedBox(height: 8),
-          Text('LAT: ${_currentLocation.latitude.toStringAsFixed(6)}', style: DesignSystem.monoData),
-          Text('LON: ${_currentLocation.longitude.toStringAsFixed(6)}', style: DesignSystem.monoData),
+          Text(
+            'LAT: ${_currentLocation.latitude.toStringAsFixed(6)}',
+            style: DesignSystem.monoData,
+          ),
+          Text(
+            'LON: ${_currentLocation.longitude.toStringAsFixed(6)}',
+            style: DesignSystem.monoData,
+          ),
         ],
       ),
     );
@@ -199,7 +222,12 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     );
   }
 
-  Widget _buildMapAction(IconData icon, String label, VoidCallback onTap, {bool active = false}) {
+  Widget _buildMapAction(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    bool active = false,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -210,12 +238,24 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             decoration: BoxDecoration(
               color: active ? DesignSystem.primary : Colors.transparent,
               borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
-              border: Border.all(color: active ? DesignSystem.primary : Colors.white24),
+              border: Border.all(
+                color: active ? DesignSystem.primary : Colors.white24,
+              ),
             ),
-            child: Icon(icon, color: active ? Colors.black : Colors.white, size: 20),
+            child: Icon(
+              icon,
+              color: active ? Colors.black : Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(height: 4),
-          Text(label, style: DesignSystem.labelCaps.copyWith(fontSize: 8, color: active ? DesignSystem.primary : Colors.white54)),
+          Text(
+            label,
+            style: DesignSystem.labelCaps.copyWith(
+              fontSize: 8,
+              color: active ? DesignSystem.primary : Colors.white54,
+            ),
+          ),
         ],
       ),
     );

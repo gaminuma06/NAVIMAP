@@ -31,16 +31,17 @@ class NaviMapApp extends StatelessWidget {
           surface: DesignSystem.surfaceContainer,
           error: DesignSystem.error,
         ),
-        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
-          headlineLarge: GoogleFonts.spaceGrotesk(
-            textStyle: DesignSystem.headlineLg,
-            color: DesignSystem.onSurface,
-          ),
-          headlineMedium: GoogleFonts.spaceGrotesk(
-            textStyle: DesignSystem.headlineMd,
-            color: DesignSystem.onSurface,
-          ),
-        ),
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
+            .copyWith(
+              headlineLarge: GoogleFonts.spaceGrotesk(
+                textStyle: DesignSystem.headlineLg,
+                color: DesignSystem.onSurface,
+              ),
+              headlineMedium: GoogleFonts.spaceGrotesk(
+                textStyle: DesignSystem.headlineMd,
+                color: DesignSystem.onSurface,
+              ),
+            ),
         appBarTheme: const AppBarTheme(
           backgroundColor: DesignSystem.surface,
           elevation: 0,
@@ -63,7 +64,8 @@ class NaviMapApp extends StatelessWidget {
             );
           } else {
             return MaterialPageRoute(
-              builder: (context) => LayerObjectsScreen(layerName: args as String),
+              builder: (context) =>
+                  LayerObjectsScreen(layerName: args as String),
             );
           }
         }

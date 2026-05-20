@@ -4,10 +4,7 @@ import '../theme/design_system.dart';
 class UserLocationMarker extends StatelessWidget {
   final double heading;
 
-  const UserLocationMarker({
-    super.key,
-    required this.heading,
-  });
+  const UserLocationMarker({super.key, required this.heading});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +34,7 @@ class UserLocationMarker extends StatelessWidget {
             },
             onEnd: () {}, // El loop se maneja por el builder si se requiere
           ),
-          
+
           // Círculo central con sombra para profundidad
           Container(
             width: 18,
@@ -55,7 +52,7 @@ class UserLocationMarker extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Puntero de dirección (Brújula)
           Transform.rotate(
             angle: (heading * 3.14159 / 180),
@@ -79,7 +76,7 @@ class DirectionPointerPainter extends CustomPainter {
 
     final path = Path();
     // Triángulo puntero (El pico del punto azul)
-    path.moveTo(size.width / 2, -5); 
+    path.moveTo(size.width / 2, -5);
     path.lineTo(size.width / 2 - 5, 5);
     path.lineTo(size.width / 2 + 5, 5);
     path.close();

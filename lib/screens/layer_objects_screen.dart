@@ -30,15 +30,22 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
   }
 
   List<Map<String, dynamic>> get _allObjects {
-    return LayerStore.getObjects(widget.layerName, mapContext: widget.mapContext);
+    return LayerStore.getObjects(
+      widget.layerName,
+      mapContext: widget.mapContext,
+    );
   }
 
   List<Map<String, dynamic>> get _filteredObjects {
     final all = _allObjects;
     if (_searchQuery.isEmpty) return all;
-    return all.where((obj) => 
-      obj['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
-    ).toList();
+    return all
+        .where(
+          (obj) => obj['name'].toString().toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
   }
 
   void _deleteObject(int index) {
@@ -49,14 +56,31 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: DesignSystem.surface,
-        title: const Text('¿Eliminar objeto?', style: TextStyle(color: Colors.white)),
-        content: Text('¿Deseas eliminar "${objectToDelete['name']}"?', style: const TextStyle(color: Colors.white70)),
+        title: const Text(
+          '¿Eliminar objeto?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          '¿Deseas eliminar "${objectToDelete['name']}"?',
+          style: const TextStyle(color: Colors.white70),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.error),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DesignSystem.error,
+            ),
             onPressed: () {
-              setState(() => LayerStore.removeObject(widget.layerName, realIndex, mapContext: widget.mapContext));
+              setState(
+                () => LayerStore.removeObject(
+                  widget.layerName,
+                  realIndex,
+                  mapContext: widget.mapContext,
+                ),
+              );
               Navigator.pop(context);
             },
             child: const Text('ELIMINAR'),
@@ -69,40 +93,64 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
   void _duplicateObject(int index) {
     final objectToDuplicate = _filteredObjects[index];
     final realIndex = _allObjects.indexOf(objectToDuplicate);
-    setState(() => LayerStore.duplicateObject(widget.layerName, realIndex, mapContext: widget.mapContext));
+    setState(
+      () => LayerStore.duplicateObject(
+        widget.layerName,
+        realIndex,
+        mapContext: widget.mapContext,
+      ),
+    );
   }
 
   void _showMoveDialog(int index) {
     final objectToMove = _filteredObjects[index];
     final realIndex = _allObjects.indexOf(objectToMove);
-    final List<Map<String, dynamic>> otherLayers = LayerStore.getLayers(widget.mapContext)
-        .where((l) => l['title'] != widget.layerName)
-        .toList();
+    final List<Map<String, dynamic>> otherLayers = LayerStore.getLayers(
+      widget.mapContext,
+    ).where((l) => l['title'] != widget.layerName).toList();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: DesignSystem.surface,
-        title: const Text('Mover a otra Capa', style: TextStyle(color: Colors.white, fontSize: 16)),
+        title: const Text(
+          'Mover a otra Capa',
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
         content: otherLayers.isEmpty
-            ? const Text('No hay otras capas disponibles.', style: TextStyle(color: Colors.white54))
+            ? const Text(
+                'No hay otras capas disponibles.',
+                style: TextStyle(color: Colors.white54),
+              )
             : SizedBox(
                 width: double.maxFinite,
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: otherLayers.length,
-                  separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                  separatorBuilder: (_, __) =>
+                      const Divider(color: Colors.white10),
                   itemBuilder: (context, lIndex) => ListTile(
-                    title: Text(otherLayers[lIndex]['title'], style: const TextStyle(color: Colors.white70)),
+                    title: Text(
+                      otherLayers[lIndex]['title'],
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                     onTap: () {
-                      LayerStore.copyObjectToLayer(widget.layerName, realIndex, otherLayers[lIndex]['title'], mapContext: widget.mapContext);
+                      LayerStore.copyObjectToLayer(
+                        widget.layerName,
+                        realIndex,
+                        otherLayers[lIndex]['title'],
+                        mapContext: widget.mapContext,
+                      );
                       Navigator.pop(context);
                     },
                   ),
                 ),
               ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
         ],
       ),
     );
@@ -113,18 +161,23 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
     return Scaffold(
       appBar: AppBar(
         surfaceTintColor: Colors.transparent,
-        title: _isSearching 
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(hintText: 'Buscar objeto...', border: InputBorder.none),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            )
-          : Text(
-              widget.layerName.toUpperCase(),
-              style: DesignSystem.labelCaps.copyWith(color: DesignSystem.primary),
-            ),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Buscar objeto...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => setState(() => _searchQuery = value),
+              )
+            : Text(
+                widget.layerName.toUpperCase(),
+                style: DesignSystem.labelCaps.copyWith(
+                  color: DesignSystem.primary,
+                ),
+              ),
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
@@ -147,15 +200,22 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
           children: [
             const SizedBox(height: DesignSystem.spacingMd),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
-              child: Text('OBJETOS (${_filteredObjects.length})', style: DesignSystem.labelCaps.copyWith(color: Colors.white38)),
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignSystem.spacingMd,
+              ),
+              child: Text(
+                'OBJETOS (${_filteredObjects.length})',
+                style: DesignSystem.labelCaps.copyWith(color: Colors.white38),
+              ),
             ),
             const SizedBox(height: DesignSystem.spacingMd),
             Expanded(
               child: _filteredObjects.isEmpty && !_isSearching
                   ? _buildEmptyStatePlaceholder()
                   : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DesignSystem.spacingMd,
+                      ),
                       itemCount: _filteredObjects.length,
                       itemBuilder: (context, index) {
                         final obj = _filteredObjects[index];
@@ -194,20 +254,67 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(DesignSystem.spacingMd),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(DesignSystem.radiusDefault)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(
+                    DesignSystem.radiusDefault,
+                  ),
+                ),
                 child: Row(
                   children: [
-                    Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(DesignSystem.radiusSm)), child: const Icon(Icons.location_on_outlined, color: Colors.white24)),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(
+                          DesignSystem.radiusSm,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.location_on_outlined,
+                        color: Colors.white24,
+                      ),
+                    ),
                     const SizedBox(width: DesignSystem.spacingMd),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(height: 14, width: 150, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4))), const SizedBox(height: 8), Container(height: 10, width: 100, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4)))]))
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 14,
+                            width: 150,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 10,
+                            width: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
           const SizedBox(height: DesignSystem.spacingLg),
-          const Text('Capa vacía', style: TextStyle(color: Colors.white38, fontSize: 16)),
-          const Text('Esta capa aún no contiene objetos tácticos.', style: TextStyle(color: Colors.white24, fontSize: 13)),
+          const Text(
+            'Capa vacía',
+            style: TextStyle(color: Colors.white38, fontSize: 16),
+          ),
+          const Text(
+            'Esta capa aún no contiene objetos tácticos.',
+            style: TextStyle(color: Colors.white24, fontSize: 13),
+          ),
         ],
       ),
     );

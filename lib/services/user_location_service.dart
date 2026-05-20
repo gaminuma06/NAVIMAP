@@ -21,7 +21,8 @@ class UserLocationService {
   factory UserLocationService() => _instance;
   UserLocationService._internal();
 
-  StreamController<UserLocationData> _locationController = StreamController<UserLocationData>.broadcast();
+  StreamController<UserLocationData> _locationController =
+      StreamController<UserLocationData>.broadcast();
   Stream<UserLocationData> get locationStream => _locationController.stream;
 
   StreamSubscription<Position>? _positionSubscription;
@@ -39,7 +40,7 @@ class UserLocationService {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return false;
       }
-      
+
       if (permission == LocationPermission.deniedForever) return false;
       return true;
     } catch (e) {
@@ -49,11 +50,13 @@ class UserLocationService {
 
   void startTracking() async {
     final hasPermission = await checkPermissions();
-    
+
     if (!hasPermission) {
       // Usar exactamente la coordenada que obtuviste en Avenza
       // 8°37'23.1" N, 73°43'57.3" W -> 8.623083, -73.732583
-      print("Iniciando Modo Simulación con coordenadas de Avenza por falta de permisos");
+      print(
+        "Iniciando Modo Simulación con coordenadas de Avenza por falta de permisos",
+      );
       simulateLocation(8.623083, -73.732583, heading: 0);
       return;
     }
@@ -64,28 +67,33 @@ class UserLocationService {
     });
 
     // Escuchar GPS Real
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 1,
-      ),
-    ).listen((Position position) {
-      _locationController.add(UserLocationData(
-        latitude: position.latitude,
-        longitude: position.longitude,
-        heading: _currentHeading,
-        accuracy: position.accuracy,
-      ));
-    });
+    _positionSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 1,
+          ),
+        ).listen((Position position) {
+          _locationController.add(
+            UserLocationData(
+              latitude: position.latitude,
+              longitude: position.longitude,
+              heading: _currentHeading,
+              accuracy: position.accuracy,
+            ),
+          );
+        });
   }
 
   void simulateLocation(double lat, double lon, {double? heading}) {
-    _locationController.add(UserLocationData(
-      latitude: lat,
-      longitude: lon,
-      heading: heading ?? 45.0,
-      accuracy: 5.0,
-    ));
+    _locationController.add(
+      UserLocationData(
+        latitude: lat,
+        longitude: lon,
+        heading: heading ?? 45.0,
+        accuracy: 5.0,
+      ),
+    );
   }
 
   void stopTracking() {

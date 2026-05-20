@@ -29,7 +29,7 @@ class GeoDataService {
     final String content = await file.readAsString();
     final document = xml.XmlDocument.parse(content);
     final coordinates = document.findAllElements('coordinates');
-    
+
     List<LatLng> points = [];
     for (var node in coordinates) {
       final text = node.innerText.trim();
@@ -44,6 +44,6 @@ class GeoDataService {
     return points;
   }
 
-  // La implementación de GPKG requeriría sqflite para abrir la base de datos 
+  // La implementación de GPKG requeriría sqflite para abrir la base de datos
   // y consultar las tablas spatial_ref_sys y las capas vectoriales.
 }

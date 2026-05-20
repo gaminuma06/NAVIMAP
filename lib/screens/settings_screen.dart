@@ -32,8 +32,8 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             title: const Text('Modo de Ahorro de Energía'),
             trailing: Switch(
-              value: true, 
-            activeTrackColor: DesignSystem.primary,
+              value: true,
+              activeTrackColor: DesignSystem.primary,
               onChanged: (v) {},
             ),
           ),
@@ -52,7 +52,10 @@ class SettingsScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
       child: Text(
         title,
-        style: DesignSystem.labelCaps.copyWith(color: DesignSystem.primary, fontSize: 10),
+        style: DesignSystem.labelCaps.copyWith(
+          color: DesignSystem.primary,
+          fontSize: 10,
+        ),
       ),
     );
   }

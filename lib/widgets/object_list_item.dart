@@ -50,7 +50,7 @@ class ObjectListItem extends StatelessWidget {
               child: _buildIcon(),
             ),
             const SizedBox(width: DesignSystem.spacingMd),
-            
+
             // Content Area
             Expanded(
               child: Column(
@@ -58,7 +58,9 @@ class ObjectListItem extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: DesignSystem.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                    style: DesignSystem.bodyLg.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -68,18 +70,28 @@ class ObjectListItem extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Options Icon with PopupMenu
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_horiz, color: Colors.white38),
               color: DesignSystem.surfaceContainer,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusMd)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignSystem.radiusMd),
+              ),
               onSelected: (value) {
                 switch (value) {
-                  case 'export': onExport?.call(); break;
-                  case 'duplicate': onDuplicate?.call(); break;
-                  case 'move': onMoveToLayer?.call(); break;
-                  case 'delete': onDelete?.call(); break;
+                  case 'export':
+                    onExport?.call();
+                    break;
+                  case 'duplicate':
+                    onDuplicate?.call();
+                    break;
+                  case 'move':
+                    onMoveToLayer?.call();
+                    break;
+                  case 'delete':
+                    onDelete?.call();
+                    break;
                 }
               },
               itemBuilder: (context) => [
@@ -87,9 +99,16 @@ class ObjectListItem extends StatelessWidget {
                   value: 'export',
                   child: Row(
                     children: [
-                      Icon(Icons.ios_share, size: 18, color: DesignSystem.primary),
+                      Icon(
+                        Icons.ios_share,
+                        size: 18,
+                        color: DesignSystem.primary,
+                      ),
                       SizedBox(width: 12),
-                      Text('Exportar', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Text(
+                        'Exportar',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -99,7 +118,10 @@ class ObjectListItem extends StatelessWidget {
                     children: [
                       Icon(Icons.copy, size: 18, color: Colors.white70),
                       SizedBox(width: 12),
-                      Text('Duplicar', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Text(
+                        'Duplicar',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -107,9 +129,16 @@ class ObjectListItem extends StatelessWidget {
                   value: 'move',
                   child: Row(
                     children: [
-                      Icon(Icons.drive_file_move_outlined, size: 18, color: Colors.white70),
+                      Icon(
+                        Icons.drive_file_move_outlined,
+                        size: 18,
+                        color: Colors.white70,
+                      ),
                       SizedBox(width: 12),
-                      Text('Mover a otra capa', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Text(
+                        'Mover a otra capa',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -118,9 +147,19 @@ class ObjectListItem extends StatelessWidget {
                   value: 'delete',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_outline, size: 18, color: DesignSystem.error),
+                      Icon(
+                        Icons.delete_outline,
+                        size: 18,
+                        color: DesignSystem.error,
+                      ),
                       SizedBox(width: 12),
-                      Text('Eliminar', style: TextStyle(color: DesignSystem.error, fontSize: 14)),
+                      Text(
+                        'Eliminar',
+                        style: TextStyle(
+                          color: DesignSystem.error,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -146,7 +185,8 @@ class ObjectListItem extends StatelessWidget {
         color = Colors.orangeAccent;
         break;
       case GeoObjectType.polygon:
-        icon = Icons.pentagon; // Cambiado a Pentágono para representar área cerrada
+        icon = Icons
+            .pentagon; // Cambiado a Pentágono para representar área cerrada
         color = Colors.blueAccent;
         break;
     }

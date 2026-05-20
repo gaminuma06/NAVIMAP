@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/design_system.dart';
 import 'dart:typed_data';
-
-enum MapSpatialStatus { within, outside, notReferenced }
+import '../services/georeference_service.dart';
 
 class MapListItem extends StatelessWidget {
   final String title;
@@ -51,7 +50,7 @@ class MapListItem extends StatelessWidget {
               child: _buildThumbnail(),
             ),
             const SizedBox(width: DesignSystem.spacingMd),
-            
+
             // Content Area
             Expanded(
               child: Column(
@@ -59,7 +58,9 @@ class MapListItem extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: DesignSystem.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                    style: DesignSystem.bodyLg.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -73,12 +74,14 @@ class MapListItem extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Options Icon with PopupMenu
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, color: Colors.white54),
               color: DesignSystem.surfaceContainer,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusMd)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignSystem.radiusMd),
+              ),
               onSelected: (value) {
                 if (value == 'download') onDownload?.call();
                 if (value == 'delete') onDelete?.call();
@@ -88,9 +91,16 @@ class MapListItem extends StatelessWidget {
                   value: 'download',
                   child: Row(
                     children: [
-                      Icon(Icons.download_outlined, color: DesignSystem.primary, size: 20),
+                      Icon(
+                        Icons.download_outlined,
+                        color: DesignSystem.primary,
+                        size: 20,
+                      ),
                       SizedBox(width: 12),
-                      Text('Descargar mapa', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Text(
+                        'Descargar mapa',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -98,9 +108,16 @@ class MapListItem extends StatelessWidget {
                   value: 'delete',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_outline, color: DesignSystem.error, size: 20),
+                      Icon(
+                        Icons.delete_outline,
+                        color: DesignSystem.error,
+                        size: 20,
+                      ),
                       SizedBox(width: 12),
-                      Text('Eliminar mapa', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Text(
+                        'Eliminar mapa',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ],
                   ),
                 ),

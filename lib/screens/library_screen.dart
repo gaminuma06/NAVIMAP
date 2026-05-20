@@ -10,6 +10,9 @@ import '../widgets/object_list_item.dart';
 import 'add_map_overlay.dart';
 import '../services/map_data_service.dart';
 import '../services/layer_store.dart';
+import '../services/user_location_service.dart';
+import '../services/georeference_service.dart';
+import 'dart:async';
 
 class MapStore {
   static Map<String, Uint8List> bytesCache = {};
@@ -29,23 +32,75 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String _searchQuery = '';
 
   final List<Map<String, dynamic>> _mockMaps = [];
-  final List<String> _loadingMaps = []; // Nombres de los mapas que se están procesando
+  final List<String> _loadingMaps =
+      []; // Nombres de los mapas que se están procesando
+
+  StreamSubscription? _locationSubscription;
+  UserLocationData? _lastLocation;
 
   bool get isMapsTab => _selectedSegment == 0;
 
   List<Map<String, dynamic>> get _filteredMaps {
     if (_searchQuery.isEmpty) return _mockMaps;
-    return _mockMaps.where((map) => 
-      map['title'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
-    ).toList();
+    return _mockMaps
+        .where(
+          (map) => map['title'].toString().toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
   }
 
   List<Map<String, dynamic>> get _filteredLayers {
     final allLayers = LayerStore.getLayers(null);
     if (_searchQuery.isEmpty) return allLayers;
-    return allLayers.where((layer) => 
-      layer['title'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
-    ).toList();
+    return allLayers
+        .where(
+          (layer) => layer['title'].toString().toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _locationSubscription = UserLocationService().locationStream.listen((
+      location,
+    ) {
+      if (!mounted) return;
+      setState(() {
+        _lastLocation = location;
+        _recalculateMapStatuses();
+      });
+    });
+  }
+
+  void _recalculateMapStatuses() {
+    if (_lastLocation == null) return;
+    for (var map in _mockMaps) {
+      final title = map['title'] as String;
+      if (!GeoreferenceService().hasCalibrationFor(title)) {
+        map['status'] = MapSpatialStatus.notReferenced;
+      } else {
+        bool isInside = GeoreferenceService().isUserInsideMap(
+          title,
+          _lastLocation!.latitude,
+          _lastLocation!.longitude,
+        );
+        map['status'] = isInside
+            ? MapSpatialStatus.within
+            : MapSpatialStatus.outside;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -55,25 +110,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Scaffold(
       appBar: AppBar(
         surfaceTintColor: Colors.transparent,
-        title: _isSearching 
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: 'Buscar...',
-                hintStyle: TextStyle(color: Colors.white54),
-                border: InputBorder.none,
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Buscar...',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => setState(() => _searchQuery = value),
+              )
+            : Text(
+                'NAVIMAP',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: Colors.white,
+                  letterSpacing: 2,
+                ),
               ),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            )
-          : Text(
-              'NAVIMAP',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: Colors.white,
-                letterSpacing: 2,
-              ),
-            ),
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
@@ -105,7 +160,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 padding: const EdgeInsets.all(DesignSystem.spacingXs),
                 decoration: BoxDecoration(
                   color: DesignSystem.surfaceContainer,
-                  borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                  borderRadius: BorderRadius.circular(
+                    DesignSystem.radiusDefault,
+                  ),
                   border: Border.all(color: DesignSystem.outline),
                 ),
                 child: Row(
@@ -117,7 +174,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignSystem.spacingMd,
+              ),
               child: Text(
                 '${isMapsTab ? "MAPAS" : "CAPAS"} DISPONIBLES (${currentList.length + (isMapsTab ? _loadingMaps.length : 0)})',
                 style: DesignSystem.labelCaps.copyWith(color: Colors.white54),
@@ -125,13 +184,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
             const SizedBox(height: DesignSystem.spacingMd),
             Expanded(
-              child: (currentList.isEmpty && _loadingMaps.isEmpty && !_isSearching)
+              child:
+                  (currentList.isEmpty && _loadingMaps.isEmpty && !_isSearching)
                   ? _buildEmptyStatePlaceholder(isMapsTab ? 'mapas' : 'capas')
                   : ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DesignSystem.spacingMd,
+                      ),
                       children: [
                         // Tarjetas de carga primero
-                        if (isMapsTab) ..._loadingMaps.map((name) => MapLoadingItem(title: name)).toList(),
+                        if (isMapsTab)
+                          ..._loadingMaps
+                              .map((name) => MapLoadingItem(title: name))
+                              .toList(),
                         // Lista normal
                         ...currentList.map((item) {
                           final String title = item['title'];
@@ -144,7 +209,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               onTap: () {
                                 final bytes = MapStore.bytesCache[title];
                                 if (bytes != null) {
-                                  MapDataService().setCurrentMap(title, Uint8List.fromList(bytes));
+                                  MapDataService().setCurrentMap(
+                                    title,
+                                    Uint8List.fromList(bytes),
+                                  );
                                 }
                                 Navigator.pushNamed(context, '/detail');
                               },
@@ -153,14 +221,29 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   context: context,
                                   builder: (context) => AlertDialog(
                                     backgroundColor: DesignSystem.surface,
-                                    title: const Text('¿Eliminar Mapa?', style: TextStyle(color: Colors.white)),
-                                    content: Text('¿Deseas eliminar el mapa "${title}"? Todos los datos asociados se perderán.', style: const TextStyle(color: Colors.white70)),
+                                    title: const Text(
+                                      '¿Eliminar Mapa?',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    content: Text(
+                                      '¿Deseas eliminar el mapa "${title}"? Todos los datos asociados se perderán.',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
                                     actions: [
-                                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('CANCELAR'),
+                                      ),
                                       ElevatedButton(
-                                        style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.error),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: DesignSystem.error,
+                                        ),
                                         onPressed: () {
-                                          setState(() => _mockMaps.remove(item));
+                                          setState(
+                                            () => _mockMaps.remove(item),
+                                          );
                                           Navigator.pop(context);
                                         },
                                         child: const Text('ELIMINAR'),
@@ -176,7 +259,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               objectCount: item['objects'] ?? 0,
                               onTap: () {
                                 Navigator.pushNamed(
-                                  context, 
+                                  context,
                                   '/layer-objects',
                                   arguments: {
                                     'layerName': title,
@@ -189,16 +272,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   context: context,
                                   builder: (context) => AlertDialog(
                                     backgroundColor: DesignSystem.surface,
-                                    title: const Text('¿Eliminar Capa?', style: TextStyle(color: Colors.white)),
-                                    content: Text('¿Deseas eliminar "${title}" del respaldo global? Esta acción no se puede deshacer.', style: const TextStyle(color: Colors.white70)),
+                                    title: const Text(
+                                      '¿Eliminar Capa?',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    content: Text(
+                                      '¿Deseas eliminar "${title}" del respaldo global? Esta acción no se puede deshacer.',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
                                     actions: [
-                                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('CANCELAR'),
+                                      ),
                                       ElevatedButton(
-                                        style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.error),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: DesignSystem.error,
+                                        ),
                                         onPressed: () {
                                           setState(() {
                                             LayerStore.layers.remove(item);
-                                            LayerStore.mapLayerObjects.remove(title);
+                                            LayerStore.mapLayerObjects.remove(
+                                              title,
+                                            );
                                           });
                                           Navigator.pop(context);
                                         },
@@ -232,14 +330,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
         unselectedLabelStyle: DesignSystem.labelCaps,
         onTap: (index) {
           if (index == 0) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Funcionalidad de Satélite próximamente')),
-          );
+          Navigator.pushReplacementNamed(context, '/satellite');
         },
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.folder), label: 'Biblioteca'),
+        items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.satellite_alt, color: Colors.white.withOpacity(0.05)),
+            icon: Icon(Icons.folder),
+            label: 'Biblioteca',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.satellite_alt),
             label: 'Satélite',
           ),
         ],
@@ -256,14 +355,38 @@ class _LibraryScreenState extends State<LibraryScreen> {
             _loadingMaps.insert(0, name);
           });
         },
-        onMapAdded: (name, thumbnail, fullBytes) {
-          if (fullBytes != null) MapStore.bytesCache[name] = Uint8List.fromList(fullBytes);
+        onMapAdded: (name, thumbnail, fullBytes) async {
+          if (fullBytes != null) {
+            final bytes = Uint8List.fromList(fullBytes);
+            MapStore.bytesCache[name] = bytes;
+            await GeoreferenceService().scanGeoPdfMetadata(name, bytes);
+          }
+
           setState(() {
             _loadingMaps.remove(name);
+
+            // Calculate initial status
+            MapSpatialStatus initialStatus = MapSpatialStatus.notReferenced;
+            if (GeoreferenceService().hasCalibrationFor(name)) {
+              if (_lastLocation != null) {
+                bool isInside = GeoreferenceService().isUserInsideMap(
+                  name,
+                  _lastLocation!.latitude,
+                  _lastLocation!.longitude,
+                );
+                initialStatus = isInside
+                    ? MapSpatialStatus.within
+                    : MapSpatialStatus.outside;
+              } else {
+                initialStatus = MapSpatialStatus.outside;
+              }
+            }
+
             _mockMaps.insert(0, {
               'title': name,
-              'date': '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-              'status': MapSpatialStatus.outside,
+              'date':
+                  '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+              'status': initialStatus,
               'thumbnailBytes': thumbnail,
             });
           });
@@ -282,7 +405,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: DesignSystem.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusLg)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+          ),
           title: const Row(
             children: [
               Icon(Icons.layers_outlined, color: DesignSystem.primary),
@@ -294,7 +419,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('¿Deseas agregar una nueva capa de información?', style: TextStyle(color: Colors.white70)),
+              const Text(
+                '¿Deseas agregar una nueva capa de información?',
+                style: TextStyle(color: Colors.white70),
+              ),
               const SizedBox(height: 20),
               TextField(
                 controller: controller,
@@ -304,21 +432,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   errorText: errorText,
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusSm)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                  ),
                 ),
-                onChanged: (value) { if (errorText != null) setDialogState(() => errorText = null); },
+                onChanged: (value) {
+                  if (errorText != null) setDialogState(() => errorText = null);
+                },
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCELAR'),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.primary, foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignSystem.primary,
+                foregroundColor: Colors.black,
+              ),
               onPressed: () {
                 final name = controller.text.trim();
                 if (name.isEmpty) return;
                 final layers = LayerStore.getLayers(null);
-                if (layers.any((l) => l['title'].toString().toLowerCase() == name.toLowerCase())) {
+                if (layers.any(
+                  (l) =>
+                      l['title'].toString().toLowerCase() == name.toLowerCase(),
+                )) {
                   setDialogState(() => errorText = 'Ya existe esta capa');
                   return;
                 }
@@ -359,20 +500,67 @@ class _LibraryScreenState extends State<LibraryScreen> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(DesignSystem.spacingMd),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(DesignSystem.radiusDefault)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(
+                    DesignSystem.radiusDefault,
+                  ),
+                ),
                 child: Row(
                   children: [
-                    Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(DesignSystem.radiusSm)), child: Icon(isMap ? Icons.map_outlined : Icons.layers_outlined, color: Colors.white24)),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(
+                          DesignSystem.radiusSm,
+                        ),
+                      ),
+                      child: Icon(
+                        isMap ? Icons.map_outlined : Icons.layers_outlined,
+                        color: Colors.white24,
+                      ),
+                    ),
                     const SizedBox(width: DesignSystem.spacingMd),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(height: 14, width: 150, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4))), const SizedBox(height: 8), Container(height: 10, width: 100, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4)))]))
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 14,
+                            width: 150,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 10,
+                            width: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
           const SizedBox(height: DesignSystem.spacingLg),
-          Text('No hay $type cargadas', style: const TextStyle(color: Colors.white38, fontSize: 16)),
-          Text('Usa el botón + para añadir tu primera ${isMap ? "mapa" : "capa"}', style: const TextStyle(color: Colors.white24, fontSize: 13)),
+          Text(
+            'No hay $type cargadas',
+            style: const TextStyle(color: Colors.white38, fontSize: 16),
+          ),
+          Text(
+            'Usa el botón + para añadir tu primera ${isMap ? "mapa" : "capa"}',
+            style: const TextStyle(color: Colors.white24, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -385,8 +573,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
         onTap: () => setState(() => _selectedSegment = index),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: DesignSystem.spacingSm),
-          decoration: BoxDecoration(color: isSelected ? DesignSystem.primary : Colors.transparent, borderRadius: BorderRadius.circular(DesignSystem.radiusSm)),
-          child: Text(label, textAlign: TextAlign.center, style: DesignSystem.labelCaps.copyWith(color: isSelected ? Colors.black : Colors.white54)),
+          decoration: BoxDecoration(
+            color: isSelected ? DesignSystem.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: DesignSystem.labelCaps.copyWith(
+              color: isSelected ? Colors.black : Colors.white54,
+            ),
+          ),
         ),
       ),
     );

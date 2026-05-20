@@ -7,10 +7,7 @@ import '../widgets/layer_list_item.dart';
 class MapLayerLibraryScreen extends StatefulWidget {
   final String mapTitle;
 
-  const MapLayerLibraryScreen({
-    super.key,
-    required this.mapTitle,
-  });
+  const MapLayerLibraryScreen({super.key, required this.mapTitle});
 
   @override
   State<MapLayerLibraryScreen> createState() => _MapLayerLibraryScreenState();
@@ -21,14 +18,19 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
   bool _isSearching = false;
   String _searchQuery = '';
 
-  List<Map<String, dynamic>> get _currentLayers => LayerStore.getLayers(widget.mapTitle);
+  List<Map<String, dynamic>> get _currentLayers =>
+      LayerStore.getLayers(widget.mapTitle);
 
   List<Map<String, dynamic>> get _filteredLayers {
     final allLayers = _currentLayers;
     if (_searchQuery.isEmpty) return allLayers;
-    return allLayers.where((l) => 
-      l['title'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
-    ).toList();
+    return allLayers
+        .where(
+          (l) => l['title'].toString().toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
   }
 
   void _addLayer() {
@@ -40,19 +42,27 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: DesignSystem.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusLg)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+          ),
           title: const Row(
             children: [
               Icon(Icons.layers_outlined, color: DesignSystem.primary),
               SizedBox(width: 12),
-              Text('Nueva Capa para el Mapa', style: TextStyle(color: Colors.white, fontSize: 18)),
+              Text(
+                'Nueva Capa para el Mapa',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('¿Deseas agregar una nueva capa? También se guardará en la biblioteca principal.', style: TextStyle(color: Colors.white70)),
+              const Text(
+                '¿Deseas agregar una nueva capa? También se guardará en la biblioteca principal.',
+                style: TextStyle(color: Colors.white70),
+              ),
               const SizedBox(height: 20),
               TextField(
                 controller: controller,
@@ -63,21 +73,35 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                   errorText: errorText,
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusSm)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                  ),
                 ),
-                onChanged: (value) { if (errorText != null) setDialogState(() => errorText = null); },
+                onChanged: (value) {
+                  if (errorText != null) setDialogState(() => errorText = null);
+                },
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCELAR'),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.primary, foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignSystem.primary,
+                foregroundColor: Colors.black,
+              ),
               onPressed: () {
                 final name = controller.text.trim();
                 if (name.isEmpty) return;
-                if (_currentLayers.any((l) => l['title'].toLowerCase() == name.toLowerCase())) {
-                  setDialogState(() => errorText = 'Ya existe esta capa en el mapa');
+                if (_currentLayers.any(
+                  (l) => l['title'].toLowerCase() == name.toLowerCase(),
+                )) {
+                  setDialogState(
+                    () => errorText = 'Ya existe esta capa en el mapa',
+                  );
                   return;
                 }
                 setState(() {
@@ -96,9 +120,15 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
 
   void _importFromGlobal() {
     final globalLayers = LayerStore.getLayers(null);
-    final availableToImport = globalLayers.where((gl) => 
-      !_currentLayers.any((cl) => cl['title'].toString().toLowerCase() == gl['title'].toString().toLowerCase())
-    ).toList();
+    final availableToImport = globalLayers
+        .where(
+          (gl) => !_currentLayers.any(
+            (cl) =>
+                cl['title'].toString().toLowerCase() ==
+                gl['title'].toString().toLowerCase(),
+          ),
+        )
+        .toList();
 
     List<String> selectedLayerNames = [];
 
@@ -107,51 +137,80 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: DesignSystem.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusLg)),
-          title: const Text('Importar Capas Globales', style: TextStyle(color: Colors.white)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+          ),
+          title: const Text(
+            'Importar Capas Globales',
+            style: TextStyle(color: Colors.white),
+          ),
           content: availableToImport.isEmpty
-            ? const Text('No hay nuevas capas en la biblioteca principal.', style: TextStyle(color: Colors.white54))
-            : SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: availableToImport.length,
-                  itemBuilder: (context, index) {
-                    final layer = availableToImport[index];
-                    final isSelected = selectedLayerNames.contains(layer['title']);
-                    return CheckboxListTile(
-                      activeColor: DesignSystem.primary,
-                      checkColor: Colors.black,
-                      title: Text(layer['title'], style: const TextStyle(color: Colors.white)),
-                      value: isSelected,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          if (val == true) {
-                            selectedLayerNames.add(layer['title']);
-                          } else {
-                            selectedLayerNames.remove(layer['title']);
-                          }
-                        });
-                      },
-                    );
-                  },
+              ? const Text(
+                  'No hay nuevas capas en la biblioteca principal.',
+                  style: TextStyle(color: Colors.white54),
+                )
+              : SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: availableToImport.length,
+                    itemBuilder: (context, index) {
+                      final layer = availableToImport[index];
+                      final isSelected = selectedLayerNames.contains(
+                        layer['title'],
+                      );
+                      return CheckboxListTile(
+                        activeColor: DesignSystem.primary,
+                        checkColor: Colors.black,
+                        title: Text(
+                          layer['title'],
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        value: isSelected,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            if (val == true) {
+                              selectedLayerNames.add(layer['title']);
+                            } else {
+                              selectedLayerNames.remove(layer['title']);
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
                 ),
-              ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCELAR'),
+            ),
             if (availableToImport.isNotEmpty)
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.primary, foregroundColor: Colors.black),
-                onPressed: selectedLayerNames.isEmpty ? null : () {
-                  setState(() {
-                    for (var name in selectedLayerNames) {
-                      final globalLayer = globalLayers.firstWhere((l) => l['title'] == name);
-                      _currentLayers.add({'title': name, 'objects': globalLayer['objects']});
-                      LayerStore.importLayerWithObjects(name, widget.mapTitle);
-                    }
-                  });
-                  Navigator.pop(context);
-                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: DesignSystem.primary,
+                  foregroundColor: Colors.black,
+                ),
+                onPressed: selectedLayerNames.isEmpty
+                    ? null
+                    : () {
+                        setState(() {
+                          for (var name in selectedLayerNames) {
+                            final globalLayer = globalLayers.firstWhere(
+                              (l) => l['title'] == name,
+                            );
+                            _currentLayers.add({
+                              'title': name,
+                              'objects': globalLayer['objects'],
+                            });
+                            LayerStore.importLayerWithObjects(
+                              name,
+                              widget.mapTitle,
+                            );
+                          }
+                        });
+                        Navigator.pop(context);
+                      },
                 child: const Text('IMPORTAR SELECCIONADAS'),
               ),
           ],
@@ -165,21 +224,29 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
     return Scaffold(
       appBar: AppBar(
         surfaceTintColor: Colors.transparent,
-        title: _isSearching 
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(hintText: 'Buscar capa...', border: InputBorder.none),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            )
-          : Text(
-              'CAPAS: ${widget.mapTitle.toUpperCase()}',
-              style: DesignSystem.labelCaps.copyWith(color: DesignSystem.primary),
-            ),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Buscar capa...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => setState(() => _searchQuery = value),
+              )
+            : Text(
+                'CAPAS: ${widget.mapTitle.toUpperCase()}',
+                style: DesignSystem.labelCaps.copyWith(
+                  color: DesignSystem.primary,
+                ),
+              ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_circle_outline, color: DesignSystem.primary),
+            icon: const Icon(
+              Icons.add_circle_outline,
+              color: DesignSystem.primary,
+            ),
             tooltip: 'Importar desde Global',
             onPressed: _importFromGlobal,
           ),
@@ -206,7 +273,9 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
               child: _filteredLayers.isEmpty && !_isSearching
                   ? _buildEmptyStatePlaceholder()
                   : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: DesignSystem.spacingMd),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DesignSystem.spacingMd,
+                      ),
                       itemCount: _filteredLayers.length,
                       itemBuilder: (context, index) {
                         final layer = _filteredLayers[index];
@@ -215,7 +284,7 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                           objectCount: layer['objects'] ?? 0,
                           onTap: () {
                             Navigator.pushNamed(
-                              context, 
+                              context,
                               '/layer-objects',
                               arguments: {
                                 'layerName': layer['title'],
@@ -228,12 +297,23 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                               context: context,
                               builder: (context) => AlertDialog(
                                 backgroundColor: DesignSystem.surface,
-                                title: const Text('¿Quitar Capa del Mapa?', style: TextStyle(color: Colors.white)),
-                                content: Text('¿Deseas quitar "${layer['title']}" de este mapa? Seguirá disponible en la biblioteca principal.', style: const TextStyle(color: Colors.white70)),
+                                title: const Text(
+                                  '¿Quitar Capa del Mapa?',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                content: Text(
+                                  '¿Deseas quitar "${layer['title']}" de este mapa? Seguirá disponible en la biblioteca principal.',
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
                                 actions: [
-                                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('CANCELAR'),
+                                  ),
                                   ElevatedButton(
-                                    style: ElevatedButton.styleFrom(backgroundColor: DesignSystem.error),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: DesignSystem.error,
+                                    ),
                                     onPressed: () {
                                       setState(() {
                                         _currentLayers.removeAt(index);
@@ -279,20 +359,67 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(DesignSystem.spacingMd),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(DesignSystem.radiusDefault)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(
+                    DesignSystem.radiusDefault,
+                  ),
+                ),
                 child: Row(
                   children: [
-                    Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(DesignSystem.radiusSm)), child: const Icon(Icons.layers_outlined, color: Colors.white24)),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(
+                          DesignSystem.radiusSm,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.layers_outlined,
+                        color: Colors.white24,
+                      ),
+                    ),
                     const SizedBox(width: DesignSystem.spacingMd),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(height: 14, width: 150, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4))), const SizedBox(height: 8), Container(height: 10, width: 100, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4)))]))
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 14,
+                            width: 150,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 10,
+                            width: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
           const SizedBox(height: DesignSystem.spacingLg),
-          const Text('No hay capas en este mapa', style: TextStyle(color: Colors.white38, fontSize: 16)),
-          const Text('Usa el botón + para añadir o importar capas', style: TextStyle(color: Colors.white24, fontSize: 13)),
+          const Text(
+            'No hay capas en este mapa',
+            style: TextStyle(color: Colors.white38, fontSize: 16),
+          ),
+          const Text(
+            'Usa el botón + para añadir o importar capas',
+            style: TextStyle(color: Colors.white24, fontSize: 13),
+          ),
         ],
       ),
     );

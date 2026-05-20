@@ -6,7 +6,8 @@ import '../services/map_data_service.dart';
 import '../services/user_location_service.dart';
 import '../services/georeference_service.dart';
 import '../widgets/user_location_marker.dart';
-
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as latlong2;
 class MapDetailScreen extends StatefulWidget {
   const MapDetailScreen({super.key});
 
@@ -16,26 +17,20 @@ class MapDetailScreen extends StatefulWidget {
 
 class _MapDetailScreenState extends State<MapDetailScreen> {
   PdfController? _pdfController;
+  final MapController _mapController = MapController();
   String _mapTitle = '';
   String? _errorMessage;
-  
+
   UserLocationData? _currentUserLocation;
-  Offset? _markerPosition;
-  final TransformationController _transformationController = TransformationController();
-  double _currentScale = 1.0;
-  double _pdfPageWidth = 1000; 
+  double _pdfPageWidth = 1000;
   double _pdfPageHeight = 1000;
+  final GlobalKey _mapAreaKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
     _loadMap();
     _initLocationTracking();
-    _transformationController.addListener(() {
-      setState(() {
-        _currentScale = _transformationController.value.getMaxScaleOnAxis();
-      });
-    });
   }
 
   void _initLocationTracking() {
@@ -50,21 +45,29 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     });
   }
 
-  void _updateMarkerPosition() {
-    if (_currentUserLocation == null) return;
+  void _calibratePosition() {
+    if (_currentUserLocation == null || _mapImageBytes == null) return;
     
-    final position = GeoreferenceService().getPixelOffset(
-      mapTitle: _mapTitle,
-      lat: _currentUserLocation!.latitude,
-      lon: _currentUserLocation!.longitude,
-      mapWidth: _pdfPageWidth,
-      mapHeight: _pdfPageHeight,
+    // In FlutterMap, calibration by dragging is different because the base map is fixed.
+    // For now, we will simply center the camera on the user's location.
+    _mapController.move(
+      latlong2.LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
+      _mapController.camera.zoom,
     );
 
-    if (position != null && !position.dx.isNaN && !position.dy.isNaN) {
-      _markerPosition = position;
-    } else {
-      _markerPosition = null;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Cámara centrada en tu posición GPS'),
+        backgroundColor: Colors.green,
+      )
+    );
+  }
+
+  void _updateMarkerPosition() {
+    // With FlutterMap, MarkerLayer automatically handles GPS to Pixel transformation!
+    // No need to manually calculate offsets.
+    if (_currentUserLocation != null) {
+      // Trigger a rebuild to update the MarkerLayer
     }
   }
 
@@ -81,19 +84,27 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
         final document = await PdfDocument.openData(bytes);
         final page = await document.getPage(1);
+
+        final cal = GeoreferenceService().getCalibration(_mapTitle);
+        Rect? cropRect;
+        double renderWidth = page.width * 2;
+        double renderHeight = page.height * 2;
         
-        // Renderizar la página como imagen para control total de píxeles
+        if (cal != null && cal.minLptsX != null) {
+          print("DEBUG: Página completa: $renderWidth x $renderHeight");
+        }
+
+        // Renderizar la página completa
         final image = await page.render(
-          width: page.width * 2, 
-          height: page.height * 2,
+          width: renderWidth,
+          height: renderHeight,
           format: PdfPageImageFormat.png,
         );
 
         setState(() {
-          // Usamos las dimensiones reales del renderizado para evitar distorsiones ("apachurado")
-          _pdfPageWidth = (image!.width ?? (page.width * 2)) / 2;
-          _pdfPageHeight = (image.height ?? (page.height * 2)) / 2;
-          _mapImageBytes = image.bytes;
+          _pdfPageWidth = renderWidth / 2;
+          _pdfPageHeight = renderHeight / 2;
+          _mapImageBytes = image!.bytes;
           _pdfController = PdfController(document: Future.value(document));
         });
       } catch (e) {
@@ -106,7 +117,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
   void _openMapLayers() {
     Navigator.pushNamed(
-      context, 
+      context,
       '/map-layers',
       arguments: _mapTitle,
     ).then((_) => setState(() {}));
@@ -116,25 +127,17 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   void dispose() {
     UserLocationService().stopTracking();
     _pdfController?.dispose();
-    _transformationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Calcular dinámicamente la coordenada a la que apunta la mira central
     Map<String, double>? centerLatLon;
-    if (_pdfPageWidth > 0 && _pdfPageHeight > 0) {
-      final screenSize = MediaQuery.of(context).size;
-      final viewportCenter = Offset(screenSize.width / 2, screenSize.height / 2);
-      final sceneCenter = _transformationController.toScene(viewportCenter);
-      
-      centerLatLon = GeoreferenceService().getLatLonFromPixel(
-        px: sceneCenter.dx,
-        py: sceneCenter.dy,
-        mapWidth: _pdfPageWidth,
-        mapHeight: _pdfPageHeight,
-      );
+    try {
+      final center = _mapController.camera.center;
+      centerLatLon = {'lat': center.latitude, 'lon': center.longitude};
+    } catch (_) {
+      // MapController not ready yet
     }
 
     return Scaffold(
@@ -144,96 +147,130 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
         backgroundColor: const Color(0xFF0D0D0D),
         elevation: 0,
         centerTitle: true,
-        title: Text(_mapTitle, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+        title: Text(
+          _mapTitle,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: DesignSystem.primary, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: DesignSystem.primary,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.search, color: DesignSystem.primary), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.info_outline, color: DesignSystem.primary), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.search, color: DesignSystem.primary),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.info_outline, color: DesignSystem.primary),
+            onPressed: () {},
+          ),
         ],
       ),
       body: Stack(
+        key: _mapAreaKey,
         children: [
           Container(color: Colors.grey[600]),
           _pdfController == null
-              ? const Center(child: CircularProgressIndicator(color: DesignSystem.primary))
-              : Positioned.fill(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return InteractiveViewer(
-                        transformationController: _transformationController,
-                        maxScale: 40.0,
-                        minScale: 0.1,
-                        boundaryMargin: const EdgeInsets.all(1000),
-                        child: _mapImageBytes == null 
-                          ? const Center(child: CircularProgressIndicator())
-                          : SizedBox(
-                              width: _pdfPageWidth,
-                              height: _pdfPageHeight,
-                              child: LayoutBuilder(
-                                builder: (context, stackConstraints) {
-                                  // Recalcular la posición usando el tamaño REAL del Stack en pantalla
-                                  Offset? dynamicPosition;
-                                  if (_currentUserLocation != null) {
-                                    dynamicPosition = GeoreferenceService().getPixelOffset(
-                                      mapTitle: _mapTitle,
-                                      lat: _currentUserLocation!.latitude,
-                                      lon: _currentUserLocation!.longitude,
-                                      mapWidth: stackConstraints.maxWidth,
-                                      mapHeight: stackConstraints.maxHeight,
-                                    );
-                                  }
-
-                                  return Stack(
-                                    alignment: Alignment.topLeft,
-                                    children: [
-                                      Image.memory(
-                                        _mapImageBytes!,
-                                        width: stackConstraints.maxWidth,
-                                        height: stackConstraints.maxHeight,
-                                        fit: BoxFit.contain, // Mantiene la relación de aspecto sin apachurrar
-                                      ),
-                                      if (dynamicPosition != null)
-                                        Positioned(
-                                          left: dynamicPosition.dx - 30,
-                                          top: dynamicPosition.dy - 30,
-                                          child: Transform.scale(
-                                            scale: _currentScale > 0 ? (1.0 / _currentScale) : 1.0, 
-                                            child: UserLocationMarker(
-                                              heading: _currentUserLocation?.heading ?? 0,
-                                            ),
-                                          ),
-                                        ),
-                                ],
-                              );
-                            },
-                          ),
+              ? const Center(
+                  child: CircularProgressIndicator(color: DesignSystem.primary),
+                )
+              : Builder(
+                  builder: (context) {
+                    final bounds = GeoreferenceService().getMapBounds(_mapTitle);
+                    if (bounds == null) {
+                      return const Center(child: Text("El mapa no tiene georreferencia válida.", style: TextStyle(color: Colors.white)));
+                    }
+                    
+                    return FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCameraFit: CameraFit.bounds(
+                          bounds: bounds,
+                          padding: const EdgeInsets.all(20),
                         ),
-                      );
-                    },
-                  ),
+                        onPositionChanged: (position, hasGesture) {
+                          setState(() {});
+                        },
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.example.navimap',
+                        ),
+                        OverlayImageLayer(
+                          overlayImages: [
+                            OverlayImage(
+                              bounds: bounds,
+                              imageProvider: MemoryImage(_mapImageBytes!),
+                              opacity: 1.0,
+                            ),
+                          ],
+                        ),
+                        if (_currentUserLocation != null)
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: latlong2.LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
+                                width: 60,
+                                height: 60,
+                                child: UserLocationMarker(heading: _currentUserLocation?.heading ?? 0),
+                              ),
+                            ],
+                          ),
+                      ],
+                    );
+                  }
                 ),
-          
+
           // Crosshair en el centro de la pantalla (Mira estática combinada)
           Center(
             child: SizedBox(
-              width: 40, height: 40,
+              width: 40,
+              height: 40,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Icon(Icons.circle_outlined, color: DesignSystem.primary.withOpacity(0.8), size: 28),
-                  Icon(Icons.add, color: DesignSystem.primary.withOpacity(0.8), size: 38),
+                  Icon(
+                    Icons.circle_outlined,
+                    color: DesignSystem.primary.withValues(alpha: 0.8),
+                    size: 28,
+                  ),
+                  Icon(
+                    Icons.add,
+                    color: DesignSystem.primary.withValues(alpha: 0.8),
+                    size: 38,
+                  ),
                 ],
               ),
             ),
           ),
-          
-          Positioned(top: 20, right: 20, child: _buildCircularButton(Icons.navigation_outlined)),
+
           Positioned(
-            bottom: 100, 
-            right: 20, 
+            top: 20,
+            right: 20,
+            child: _buildCircularButton(Icons.navigation_outlined),
+          ),
+
+          Positioned(
+            bottom: 160,
+            right: 20,
+            child: GestureDetector(
+              onTap: _calibratePosition,
+              child: _buildCircularButton(Icons.gps_fixed, color: Colors.green),
+            ),
+          ),
+
+          Positioned(
+            bottom: 100,
+            right: 20,
             child: GestureDetector(
               onTap: () {
                 // Usamos el GPS real, ya no sobreescribimos con coordenadas simuladas.
@@ -243,7 +280,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
           ),
 
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               color: const Color(0xFF0D0D0D),
@@ -255,18 +294,73 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(color: const Color(0xFF1F1F1F), borderRadius: BorderRadius.circular(20)),
-                        child: Text(
-                          centerLatLon != null 
-                            ? '${centerLatLon['lat']!.toStringAsFixed(6)}, ${centerLatLon['lon']!.toStringAsFixed(6)}'
-                            : 'Calculando coordenadas...',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1F1F1F),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              centerLatLon != null
+                                  ? '${centerLatLon!['lat']!.toStringAsFixed(6)}, ${centerLatLon!['lon']!.toStringAsFixed(6)}${GeoreferenceService().debugInfo.isNotEmpty ? " | " + GeoreferenceService().debugInfo : ""}'
+                                  : (GeoreferenceService().hasCalibrationFor(
+                                          _mapTitle,
+                                        )
+                                        ? 'Calculando... ${GeoreferenceService().debugInfo}'
+                                        : 'NO REFERENCIADO'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (_currentUserLocation != null)
+                              Text(
+                                'GPS REAL: ${_currentUserLocation!.latitude.toStringAsFixed(6)}, ${_currentUserLocation!.longitude.toStringAsFixed(6)}',
+                                style: const TextStyle(
+                                  color: DesignSystem.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    GestureDetector(onTap: _openMapLayers, child: const Icon(Icons.layers_outlined, color: DesignSystem.primary)),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _calibratePosition,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          "CALIBRAR\nAQUÍ",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _openMapLayers,
+                      child: const Icon(
+                        Icons.layers_outlined,
+                        color: DesignSystem.primary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -277,22 +371,19 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     );
   }
 
-  Widget _buildTinyButton(String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(color: DesignSystem.primary, borderRadius: BorderRadius.circular(4)),
-        child: Text(label, style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
 
-  Widget _buildCircularButton(IconData icon) {
+  Widget _buildCircularButton(IconData icon, {Color? color}) {
     return Container(
-      width: 50, height: 50,
-      decoration: const BoxDecoration(color: Color(0xFF0D0D0D), shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 2))]),
-      child: Icon(icon, color: DesignSystem.primary, size: 26),
+      width: 50,
+      height: 50,
+      decoration: const BoxDecoration(
+        color: Color(0xFF0D0D0D),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Icon(icon, color: color ?? DesignSystem.primary, size: 26),
     );
   }
 }

@@ -48,7 +48,7 @@ class LayerListItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: DesignSystem.spacingMd),
-            
+
             // Content Area
             Expanded(
               child: Column(
@@ -56,7 +56,9 @@ class LayerListItem extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: DesignSystem.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                    style: DesignSystem.bodyLg.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -68,12 +70,14 @@ class LayerListItem extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Options Icon with PopupMenu
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, color: Colors.white54),
               color: DesignSystem.surfaceContainer,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignSystem.radiusMd)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignSystem.radiusMd),
+              ),
               onSelected: (value) {
                 if (value == 'rename') onRename?.call();
                 if (value == 'export') onExport?.call();
@@ -84,9 +88,16 @@ class LayerListItem extends StatelessWidget {
                   value: 'rename',
                   child: Row(
                     children: [
-                      Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+                      Icon(
+                        Icons.edit_outlined,
+                        color: Colors.white70,
+                        size: 20,
+                      ),
                       SizedBox(width: 12),
-                      Text('Renombrar capa', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Text(
+                        'Renombrar capa',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -94,9 +105,16 @@ class LayerListItem extends StatelessWidget {
                   value: 'export',
                   child: Row(
                     children: [
-                      Icon(Icons.ios_share_outlined, color: DesignSystem.primary, size: 20),
+                      Icon(
+                        Icons.ios_share_outlined,
+                        color: DesignSystem.primary,
+                        size: 20,
+                      ),
                       SizedBox(width: 12),
-                      Text('Exportar capa', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Text(
+                        'Exportar capa',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -104,9 +122,16 @@ class LayerListItem extends StatelessWidget {
                   value: 'delete',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_outline, color: DesignSystem.error, size: 20),
+                      Icon(
+                        Icons.delete_outline,
+                        color: DesignSystem.error,
+                        size: 20,
+                      ),
                       SizedBox(width: 12),
-                      Text('Eliminar capa', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Text(
+                        'Eliminar capa',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
