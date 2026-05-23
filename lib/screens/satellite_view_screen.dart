@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import '../theme/design_system.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/user_location_marker.dart';
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 
 class SatelliteViewScreen extends StatefulWidget {
   const SatelliteViewScreen({super.key});
@@ -74,6 +75,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                 urlTemplate:
                     'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
                 userAgentPackageName: 'com.navimap.app',
+                tileProvider: CancellableNetworkTileProvider(silenceExceptions: true),
               ),
               if (_currentLocation.latitude != 0)
                 MarkerLayer(

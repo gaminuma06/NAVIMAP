@@ -887,11 +887,7 @@ class GeoreferenceService {
         latlong2.LatLng(cal.boundsSouth!, cal.boundsWest!),
         latlong2.LatLng(cal.boundsNorth!, cal.boundsEast!),
       );
-      print('=== DEBUG GEOREF (FAST PATH GPTS) ===');
-      print('Esquina SW: ${bounds.southWest}');
-      print('Esquina NE: ${bounds.northEast}');
-      print('Proyección usada: ${cal.projectionIdentifier}');
-      print('===================');
+
       return bounds;
     }
 

@@ -8,6 +8,8 @@ import '../services/georeference_service.dart';
 import '../widgets/user_location_marker.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
+
 class MapDetailScreen extends StatefulWidget {
   const MapDetailScreen({super.key});
 
@@ -18,6 +20,9 @@ class MapDetailScreen extends StatefulWidget {
 class _MapDetailScreenState extends State<MapDetailScreen> {
   PdfController? _pdfController;
   final MapController _mapController = MapController();
+  
+  static final Map<String, double> _dynamicMinZooms = {};
+  
   String _mapTitle = '';
   String? _errorMessage;
 
@@ -106,6 +111,21 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
           _pdfPageHeight = renderHeight / 2;
           _mapImageBytes = image!.bytes;
           _pdfController = PdfController(document: Future.value(document));
+          
+          // PRINTS DE DIAGNÓSTICO
+          print('========== PDF LOADED: $_mapTitle ==========');
+          print('PDF Page dimensions: ${page.width} x ${page.height}');
+          print('Render dimensions: $renderWidth x $renderHeight');
+          print('Final _pdfPageWidth: $_pdfPageWidth');
+          print('Final _pdfPageHeight: $_pdfPageHeight');
+          print('PDF Ratio: ${_pdfPageWidth / _pdfPageHeight}');
+          
+          final cal = GeoreferenceService().getCalibration(_mapTitle);
+          if (cal != null) {
+            print('Calibration projection: ${cal.projectionIdentifier}');
+            print('Bounds: S=${cal.boundsSouth}, N=${cal.boundsNorth}, W=${cal.boundsWest}, E=${cal.boundsEast}');
+          }
+          print('==========================================');
         });
       } catch (e) {
         setState(() => _errorMessage = 'Error al abrir el PDF: $e');
@@ -184,9 +204,36 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                 )
               : Builder(
                   builder: (context) {
-                    final bounds = GeoreferenceService().getMapBounds(_mapTitle);
+                    var bounds = GeoreferenceService().getMapBounds(_mapTitle);
                     if (bounds == null) {
                       return const Center(child: Text("El mapa no tiene georreferencia válida.", style: TextStyle(color: Colors.white)));
+                    }
+                    
+                    // FIX 3: Ajustar bounds para que coincidan con aspect ratio del PDF
+                    final pdfRatio = _pdfPageWidth / _pdfPageHeight;
+                    final geoWidth = bounds.east - bounds.west;
+                    final geoHeight = bounds.north - bounds.south;
+                    final geoRatio = geoWidth / geoHeight;
+                    
+                    if ((pdfRatio - geoRatio).abs() > 0.05) {
+                      final centerLat = (bounds.south + bounds.north) / 2;
+                      final centerLon = (bounds.west + bounds.east) / 2;
+                      
+                      if (pdfRatio > geoRatio) {
+                        // PDF más ancho, expandir longitud
+                        final newWidth = geoHeight * pdfRatio;
+                        bounds = LatLngBounds(
+                          latlong2.LatLng(bounds.south, centerLon - newWidth / 2),
+                          latlong2.LatLng(bounds.north, centerLon + newWidth / 2),
+                        );
+                      } else {
+                        // PDF más alto, expandir latitud
+                        final newHeight = geoWidth / pdfRatio;
+                        bounds = LatLngBounds(
+                          latlong2.LatLng(centerLat - newHeight / 2, bounds.west),
+                          latlong2.LatLng(centerLat + newHeight / 2, bounds.east),
+                        );
+                      }
                     }
                     
                     return FlutterMap(
@@ -196,14 +243,42 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                           bounds: bounds,
                           padding: const EdgeInsets.all(20),
                         ),
-                        onPositionChanged: (position, hasGesture) {
-                          setState(() {});
+                        minZoom: _dynamicMinZooms[_mapTitle] ?? 22.0,
+                        maxZoom: 22.0,
+                        onMapReady: () {
+                          if (!_dynamicMinZooms.containsKey(_mapTitle)) {
+                            // Obtener tamaño del viewport (pantalla)
+                            final RenderBox? renderBox = _mapAreaKey.currentContext?.findRenderObject() as RenderBox?;
+                            if (renderBox == null) {
+                              setState(() => _dynamicMinZooms[_mapTitle] = 10.0);
+                              return;
+                            }
+                            
+                            final viewportWidth = renderBox.size.width;
+                            final viewportHeight = renderBox.size.height;
+                            final bounds = GeoreferenceService().getMapBounds(_mapTitle);
+                            if (bounds == null) return;
+                            
+                            // Calcular cuánto zoom se necesita para que el mapa ocupe 60% del viewport
+                            final currentZoom = _mapController.camera.zoom;
+                            
+                            // Permitir alejarse hasta que el mapa ocupe 60% de la pantalla
+                            // (esto es aproximadamente -0.7 niveles de zoom desde el fit inicial)
+                            final minZoom = currentZoom - 0.7;
+                            
+                            setState(() {
+                              _dynamicMinZooms[_mapTitle] = minZoom;
+                              print('✅ GUARDADO: $_mapTitle → minZoom = $minZoom (desde currentZoom = $currentZoom)');
+                              print('📊 Map completo: $_dynamicMinZooms');
+                            });
+                          }
                         },
                       ),
                       children: [
                         TileLayer(
                           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                           userAgentPackageName: 'com.example.navimap',
+                          tileProvider: CancellableNetworkTileProvider(silenceExceptions: true),
                         ),
                         OverlayImageLayer(
                           overlayImages: [
