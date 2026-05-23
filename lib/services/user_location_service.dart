@@ -66,6 +66,21 @@ class UserLocationService {
       _currentHeading = event.heading;
     });
 
+    // Obtener última posición conocida para mostrarla instantáneamente
+    try {
+      final lastPos = await Geolocator.getLastKnownPosition();
+      if (lastPos != null) {
+        _locationController.add(
+          UserLocationData(
+            latitude: lastPos.latitude,
+            longitude: lastPos.longitude,
+            heading: _currentHeading,
+            accuracy: lastPos.accuracy,
+          ),
+        );
+      }
+    } catch (_) {}
+
     // Escuchar GPS Real
     _positionSubscription =
         Geolocator.getPositionStream(

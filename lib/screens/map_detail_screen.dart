@@ -243,33 +243,30 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                           bounds: bounds,
                           padding: const EdgeInsets.all(20),
                         ),
-                        minZoom: _dynamicMinZooms[_mapTitle] ?? 22.0,
+                        minZoom: _dynamicMinZooms[_mapTitle] ?? 1.0,
                         maxZoom: 22.0,
                         onMapReady: () {
                           if (!_dynamicMinZooms.containsKey(_mapTitle)) {
-                            // Obtener tamaño del viewport (pantalla)
-                            final RenderBox? renderBox = _mapAreaKey.currentContext?.findRenderObject() as RenderBox?;
-                            if (renderBox == null) {
-                              setState(() => _dynamicMinZooms[_mapTitle] = 10.0);
-                              return;
-                            }
-                            
-                            final viewportWidth = renderBox.size.width;
-                            final viewportHeight = renderBox.size.height;
-                            final bounds = GeoreferenceService().getMapBounds(_mapTitle);
-                            if (bounds == null) return;
-                            
-                            // Calcular cuánto zoom se necesita para que el mapa ocupe 60% del viewport
-                            final currentZoom = _mapController.camera.zoom;
-                            
-                            // Permitir alejarse hasta que el mapa ocupe 60% de la pantalla
-                            // (esto es aproximadamente -0.7 niveles de zoom desde el fit inicial)
-                            final minZoom = currentZoom - 0.7;
-                            
-                            setState(() {
-                              _dynamicMinZooms[_mapTitle] = minZoom;
-                              print('✅ GUARDADO: $_mapTitle → minZoom = $minZoom (desde currentZoom = $currentZoom)');
-                              print('📊 Map completo: $_dynamicMinZooms');
+                            // Esperar a que CameraFit.bounds se aplique realmente (toma 1 frame)
+                            Future.delayed(const Duration(milliseconds: 100), () {
+                              if (!mounted) return;
+                              
+                              final RenderBox? renderBox = _mapAreaKey.currentContext?.findRenderObject() as RenderBox?;
+                              if (renderBox == null) {
+                                setState(() => _dynamicMinZooms[_mapTitle] = 10.0);
+                                return;
+                              }
+                              
+                              // AHORA SÍ el zoom será el correcto (ej: 15.0 para el mapa 2)
+                              final currentZoom = _mapController.camera.zoom;
+                              
+                              final minZoom = currentZoom - 0.7;
+                              
+                              setState(() {
+                                _dynamicMinZooms[_mapTitle] = minZoom;
+                                print('✅ GUARDADO: $_mapTitle → minZoom = $minZoom (desde currentZoom = $currentZoom)');
+                                print('📊 Map completo: $_dynamicMinZooms');
+                              });
                             });
                           }
                         },
