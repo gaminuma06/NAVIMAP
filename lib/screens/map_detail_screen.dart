@@ -53,6 +53,22 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   void _calibratePosition() {
     if (_currentUserLocation == null || _mapImageBytes == null) return;
     
+    final isInside = GeoreferenceService().isUserInsideMap(
+      _mapTitle,
+      _currentUserLocation!.latitude,
+      _currentUserLocation!.longitude,
+    );
+
+    if (!isInside) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu ubicación está fuera de los límites de este mapa'),
+          backgroundColor: Colors.redAccent,
+        )
+      );
+      return;
+    }
+
     // In FlutterMap, calibration by dragging is different because the base map is fixed.
     // For now, we will simply center the camera on the user's location.
     _mapController.move(
