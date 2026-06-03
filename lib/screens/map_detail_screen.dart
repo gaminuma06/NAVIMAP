@@ -248,6 +248,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                         ),
                         minZoom: _dynamicMinZooms[_mapTitle] ?? 1.0,
                         maxZoom: 22.0,
+                        onPositionChanged: (camera, hasGesture) {
+                          setState(() {});
+                        },
                         onMapReady: () {
                           if (!_dynamicMinZooms.containsKey(_mapTitle)) {
                             // Esperar a que CameraFit.bounds se aplique realmente (toma 1 frame)
@@ -399,30 +402,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _calibratePosition,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          "CALIBRAR\nAQUÍ",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
+                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: _openMapLayers,
                       child: const Icon(
