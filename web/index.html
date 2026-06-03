@@ -1,6 +1,164 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script>
+    // Interceptar y silenciar errores de CanvasKit (_handledContextLostEvent) en el navegador
+    (function() {
+      const registeredListeners = [];
+      const originalAdd = EventTarget.prototype.addEventListener;
+      const originalRemove = EventTarget.prototype.removeEventListener;
+
+      // 1. Interceptar addEventListener para envolver listeners de WebGL en un try-catch
+      EventTarget.prototype.addEventListener = function(type, listener, options) {
+        if ((type === 'webglcontextlost' || type === 'webglcontextrestored' || type === 'contextlost') && typeof listener === 'function') {
+          const originalListener = listener;
+          listener = function(...args) {
+            try {
+              return originalListener.apply(this, args);
+            } catch (e) {
+              const errStr = String(e) + (e.stack ? '\n' + e.stack : '');
+              if (errStr.indexOf('_handledContextLostEvent') !== -1) {
+                return; // Silenciar
+              }
+              throw e;
+            }
+          };
+          registeredListeners.push({ target: this, type, listener, originalListener, options });
+        }
+        return originalAdd.call(this, type, listener, options);
+      };
+
+      // 2. Interceptar removeEventListener para desmapear el wrapper
+      EventTarget.prototype.removeEventListener = function(type, listener, options) {
+        if (type === 'webglcontextlost' || type === 'webglcontextrestored' || type === 'contextlost') {
+          const idx = registeredListeners.findIndex(item => item.target === this && item.originalListener === listener && item.type === type);
+          if (idx !== -1) {
+            const item = registeredListeners[idx];
+            registeredListeners.splice(idx, 1);
+            return originalRemove.call(this, type, item.listener, options);
+          }
+        }
+        return originalRemove.call(this, type, listener, options);
+      };
+
+      // 3. Interceptar propiedad onwebglcontextlost
+      if (typeof HTMLCanvasElement !== 'undefined') {
+        Object.defineProperty(HTMLCanvasElement.prototype, 'onwebglcontextlost', {
+          set: function(listener) {
+            if (typeof listener === 'function') {
+              const originalListener = listener;
+              listener = function(...args) {
+                try {
+                  return originalListener.apply(this, args);
+                } catch (e) {
+                  const errStr = String(e) + (e.stack ? '\n' + e.stack : '');
+                  if (errStr.indexOf('_handledContextLostEvent') !== -1) {
+                    return; // Silenciar
+                  }
+                  throw e;
+                }
+              };
+            }
+            this._onwebglcontextlost = listener;
+          },
+          get: function() {
+            return this._onwebglcontextlost;
+          },
+          configurable: true
+        });
+      }
+
+      // 4. Limpiar todos los listeners guardados
+      function clearAllListeners() {
+        while (registeredListeners.length > 0) {
+          const item = registeredListeners.shift();
+          try {
+            originalRemove.call(item.target, item.type, item.listener, item.options);
+          } catch (e) {}
+        }
+      }
+
+      // 5. Interceptar remoción de elementos del DOM
+      const originalRemoveChild = Node.prototype.removeChild;
+      Node.prototype.removeChild = function(child) {
+        if (child && child.tagName === 'CANVAS') {
+          clearAllListeners();
+        }
+        return originalRemoveChild.call(this, child);
+      };
+
+      const originalRemoveElement = Element.prototype.remove;
+      if (originalRemoveElement) {
+        Element.prototype.remove = function() {
+          if (this.tagName === 'CANVAS') {
+            clearAllListeners();
+          }
+          return originalRemoveElement.call(this);
+        };
+      }
+
+      // 6. Interceptar instanciación de WebAssembly
+      if (typeof WebAssembly !== 'undefined') {
+        const originalInstantiate = WebAssembly.instantiate;
+        WebAssembly.instantiate = function(source, importObject) {
+          clearAllListeners();
+          return originalInstantiate.call(this, source, importObject);
+        };
+
+        const originalInstantiateStreaming = WebAssembly.instantiateStreaming;
+        WebAssembly.instantiateStreaming = function(source, importObject) {
+          clearAllListeners();
+          return originalInstantiateStreaming.call(this, source, importObject);
+        };
+      }
+
+      // 7. Interceptores de consola y errores globales como red de seguridad adicional
+      const methods = ['log', 'warn', 'error', 'info', 'debug'];
+      methods.forEach(method => {
+        const original = console[method];
+        console[method] = function(...args) {
+          const shouldMute = args.some(arg => {
+            if (!arg) return false;
+            const str = typeof arg === 'string' ? arg : String(arg);
+            return str.indexOf('_handledContextLostEvent') !== -1;
+          });
+          if (shouldMute) return;
+          original.apply(console, args);
+        };
+      });
+
+      window.addEventListener('error', function(e) {
+        let shouldMute = false;
+        if (e.message && e.message.indexOf('_handledContextLostEvent') !== -1) {
+          shouldMute = true;
+        }
+        if (e.error) {
+          const errStr = String(e.error);
+          if (errStr.indexOf('_handledContextLostEvent') !== -1) {
+            shouldMute = true;
+          }
+        }
+        if (shouldMute) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
+
+      window.addEventListener('unhandledrejection', function(e) {
+        let shouldMute = false;
+        if (e.reason) {
+          const reasonStr = String(e.reason);
+          if (reasonStr.indexOf('_handledContextLostEvent') !== -1) {
+            shouldMute = true;
+          }
+        }
+        if (shouldMute) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
+    })();
+  </script>
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.

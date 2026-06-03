@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:typed_data';
 import 'package:dotted_border/dotted_border.dart';
 import '../theme/design_system.dart';
@@ -63,9 +64,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
         .toList();
   }
 
+  bool _fontsLoaded = false;
+
   @override
   void initState() {
     super.initState();
+    _preloadFonts();
     _locationSubscription = UserLocationService().locationStream.listen((
       location,
     ) {
@@ -75,6 +79,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _recalculateMapStatuses();
       });
     });
+  }
+
+  Future<void> _preloadFonts() async {
+    try {
+      await GoogleFonts.pendingFonts([
+        GoogleFonts.inter(fontWeight: FontWeight.w400),
+        GoogleFonts.inter(fontWeight: FontWeight.w500),
+        GoogleFonts.inter(fontWeight: FontWeight.w600),
+        GoogleFonts.inter(fontWeight: FontWeight.w700),
+        GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w600),
+        GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w700),
+      ]);
+    } catch (e) {
+      debugPrint('Error precalentando fuentes: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _fontsLoaded = true;
+        });
+      }
+    }
   }
 
   void _recalculateMapStatuses() {
@@ -105,6 +130,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_fontsLoaded) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF131313),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFF00E676),
+          ),
+        ),
+      );
+    }
+
     final currentList = isMapsTab ? _filteredMaps : _filteredLayers;
 
     return Scaffold(
