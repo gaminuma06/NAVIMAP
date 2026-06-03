@@ -87,6 +87,21 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       try {
         await GeoreferenceService().scanGeoPdfMetadata(_mapTitle, bytes);
 
+        // Intentar obtener del caché en memoria
+        final cachedPng = service.getCachedPng(_mapTitle);
+        final cachedWidth = service.getCachedWidth(_mapTitle);
+        final cachedHeight = service.getCachedHeight(_mapTitle);
+
+        if (cachedPng != null && cachedWidth != null && cachedHeight != null) {
+          setState(() {
+            _pdfPageWidth = cachedWidth;
+            _pdfPageHeight = cachedHeight;
+            _mapImageBytes = cachedPng;
+            _pdfController = PdfController(document: PdfDocument.openData(bytes));
+          });
+          return;
+        }
+
         final document = await PdfDocument.openData(bytes);
         final page = await document.getPage(1);
 
@@ -103,10 +118,16 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
           format: PdfPageImageFormat.png,
         );
 
+        final finalWidth = renderWidth / 2;
+        final finalHeight = renderHeight / 2;
+
+        // Guardar en la caché global de memoria
+        service.cacheRenderedMap(_mapTitle, image!.bytes, finalWidth, finalHeight);
+
         setState(() {
-          _pdfPageWidth = renderWidth / 2;
-          _pdfPageHeight = renderHeight / 2;
-          _mapImageBytes = image!.bytes;
+          _pdfPageWidth = finalWidth;
+          _pdfPageHeight = finalHeight;
+          _mapImageBytes = image.bytes;
           _pdfController = PdfController(document: Future.value(document));
         });
       } catch (e) {
@@ -374,15 +395,6 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (_currentUserLocation != null)
-                              Text(
-                                'GPS REAL: ${_currentUserLocation!.latitude.toStringAsFixed(6)}, ${_currentUserLocation!.longitude.toStringAsFixed(6)}',
-                                style: const TextStyle(
-                                  color: DesignSystem.primary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
                           ],
                         ),
                       ),
