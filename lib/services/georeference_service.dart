@@ -151,9 +151,7 @@ class GeoreferenceService {
           r'<<[^>]*?/Filter\s*/FlateDecode[^>]*?>>\s*stream\r?\n(.*?)\r?\nendstream',
           dotAll: true,
         ).allMatches(content);
-        print(
-          "DEBUG: Encontrados ${streamMatches.length} streams comprimidos.",
-        );
+        // Encontrados compressed streams
         for (var match in streamMatches) {
           try {
             List<int> compressed = match.group(1)!.codeUnits;
@@ -176,14 +174,14 @@ class GeoreferenceService {
             !candidate.contains("Auxiliary_Sphere") && 
             !candidate.contains("EPSG:3857")) {
           wkt = candidate;
-          print("DEBUG: WKT Válido Encontrado: $wkt");
+          // WKT Válido Encontrado
           break; // Tomar el primero que no sea Web Mercator
         }
       }
       
       if (wkt == null && wktMatches.isNotEmpty) {
         wkt = wktMatches.first.group(1) ?? wktMatches.first.group(0)!;
-        print("DEBUG: WKT Fallback Encontrado (Web Mercator): $wkt");
+        // WKT Fallback Encontrado
       }
 
       if (wkt != null) {
@@ -242,7 +240,7 @@ class GeoreferenceService {
                 0.0;
             wkt =
                 '+proj=tmerc +lat_0=$lat0 +lon_0=$cm +k=$sf +x_0=$fe +y_0=$fn +datum=WGS84 +units=m +no_defs';
-            print("DEBUG: Generado proj4 desde TerraGo: $wkt");
+            // Generado proj4 desde TerraGo
           }
         }
       }
@@ -252,7 +250,7 @@ class GeoreferenceService {
         r'/CTM\s*\[\s*([\d\.\s-]+)\s*\]',
       ).firstMatch(content);
       if (ctmMatch != null) {
-        print("DEBUG: /CTM encontrado: ${ctmMatch.group(1)}");
+        // /CTM encontrado
         List<double> ctm = _parseNumbers(ctmMatch.group(1)!);
         if (ctm.length >= 6) {
           double a = ctm[0],
@@ -285,7 +283,7 @@ class GeoreferenceService {
           RegExp(r'/TiePoint\s*\[\s*([\d\.\s-]+)\s*\]').firstMatch(content) ??
           RegExp(r'/TiePoints\s*\[\s*([\d\.\s-]+)\s*\]').firstMatch(content);
       if (tiePointsMatch != null) {
-        print("DEBUG: /TiePoint encontrado: ${tiePointsMatch.group(1)}");
+        // /TiePoint encontrado
         List<double> tp = _parseNumbers(tiePointsMatch.group(1)!);
         if (tp.length >= 12) {
           List<math.Point<double>> pdfPoints = [];
@@ -346,9 +344,7 @@ class GeoreferenceService {
       final lptsMatches = RegExp(
         r'/LPTS\s*\[\s*([\d\.\s-]+)\s*\]',
       ).allMatches(content);
-      print(
-        "DEBUG: Encontrados ${gptsMatches.length} /GPTS y ${lptsMatches.length} /LPTS",
-      );
+      // Encontrados /GPTS y /LPTS
 
       if (gptsMatches.isNotEmpty) {
         List<double> bestGpts = [];
@@ -368,7 +364,7 @@ class GeoreferenceService {
               ).allMatches(content);
               if (boundsMatches.length > i) {
                 lpts = _parseNumbers(boundsMatches.elementAt(i).group(1)!);
-                print("DEBUG: Usando /Bounds: $lpts");
+                // Usando /Bounds
               } else {
                 lpts = [0, 0, 1, 0, 1, 1, 0, 1];
               }
@@ -381,11 +377,11 @@ class GeoreferenceService {
                 var neatline = _parseNumbers(lgiMatch.group(1)!);
                 if (neatline.length >= 8) {
                   lpts = neatline;
-                  print("DEBUG: Usando /LGIDict /Neatline: $lpts");
+                  // Usando /LGIDict /Neatline
                 }
               }
             }
-            print("DEBUG: Evaluando GPTS: $gpts, con LPTS: $lpts");
+            // Evaluando GPTS y LPTS
 
             double minX = lpts[0],
                 maxX = lpts[0],
@@ -439,7 +435,7 @@ class GeoreferenceService {
             minX, minY,
             maxX, minY
           ];
-          print("DEBUG: LPTS reparado usando /Viewport /BBox: $lpts");
+          // LPTS reparado usando /Viewport /BBox
         }
 
         if (gpts.length >= 6) {
@@ -504,7 +500,7 @@ class GeoreferenceService {
             bNorth = tlLat;
             bWest = tlLon;
             bEast = brLon;
-            print("DEBUG: Bounds extrapolados a página completa: SW(\$bSouth, \$bWest) NE(\$bNorth, \$bEast)");
+            // Bounds extrapolados a página completa
           } else if (!isProjected) {
             // Compute bounds directly from GPTS if they are Lat/Lon
             double minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
@@ -524,7 +520,7 @@ class GeoreferenceService {
             }
             if (minLat >= -90 && maxLat <= 90 && minLon >= -180 && maxLon <= 180) {
               bSouth = minLat; bNorth = maxLat; bWest = minLon; bEast = maxLon;
-              print("DEBUG: Bounds directos desde GPTS: SW(\$bSouth, \$bWest) NE(\$bNorth, \$bEast)");
+              // Bounds directos desde GPTS
             }
           }
           
@@ -567,7 +563,7 @@ class GeoreferenceService {
                 }
               }
             }
-            print("DEBUG: Projection asignada: $projId");
+            // Projection asignada
           }
 
           if (projection == null && isProjected && gpts[0].abs() > 1000000) {
@@ -714,6 +710,19 @@ class GeoreferenceService {
   ) {
     final cal = getCalibration(mapTitle);
     if (cal == null) return MapSpatialStatus.notReferenced;
+
+    final bounds = getMapBounds(mapTitle);
+    if (bounds != null) {
+      final minLat = math.min(bounds.southWest.latitude, bounds.northEast.latitude);
+      final maxLat = math.max(bounds.southWest.latitude, bounds.northEast.latitude);
+      final minLon = math.min(bounds.southWest.longitude, bounds.northEast.longitude);
+      final maxLon = math.max(bounds.southWest.longitude, bounds.northEast.longitude);
+
+      if (lat < minLat || lat > maxLat || lon < minLon || lon > maxLon) {
+        return MapSpatialStatus.outside;
+      }
+    }
+
     final pt = getPixelOffset(
       mapTitle: mapTitle,
       lat: lat,
@@ -722,14 +731,48 @@ class GeoreferenceService {
       mapHeight: mapHeight,
     );
     if (pt == null) return MapSpatialStatus.outside;
-    if (pt.dx >= 0 && pt.dx <= mapWidth && pt.dy >= 0 && pt.dy <= mapHeight)
+
+    double xPercent = pt.dx / mapWidth;
+    double yPercent = pt.dy / mapHeight;
+
+    double minX = cal.minLptsX ?? 0.0;
+    double maxX = cal.maxLptsX ?? 1.0;
+    double minY = cal.minLptsY ?? 0.0;
+    double maxY = cal.maxLptsY ?? 1.0;
+
+    double topY = 1.0 - maxY;
+    double bottomY = 1.0 - minY;
+
+    double realMinX = math.min(minX, maxX);
+    double realMaxX = math.max(minX, maxX);
+    double realMinY = math.min(topY, bottomY);
+    double realMaxY = math.max(topY, bottomY);
+
+    if (xPercent >= realMinX &&
+        xPercent <= realMaxX &&
+        yPercent >= realMinY &&
+        yPercent <= realMaxY) {
       return MapSpatialStatus.within;
+    }
     return MapSpatialStatus.outside;
   }
 
   bool isUserInsideMap(String mapTitle, double lat, double lon) {
     final cal = getCalibration(mapTitle);
     if (cal == null) return false;
+
+    final bounds = getMapBounds(mapTitle);
+    if (bounds != null) {
+      final minLat = math.min(bounds.southWest.latitude, bounds.northEast.latitude);
+      final maxLat = math.max(bounds.southWest.latitude, bounds.northEast.latitude);
+      final minLon = math.min(bounds.southWest.longitude, bounds.northEast.longitude);
+      final maxLon = math.max(bounds.southWest.longitude, bounds.northEast.longitude);
+
+      if (lat < minLat || lat > maxLat || lon < minLon || lon > maxLon) {
+        return false;
+      }
+    }
+
     final pt = getPixelOffset(
       mapTitle: mapTitle,
       lat: lat,
@@ -738,10 +781,27 @@ class GeoreferenceService {
       mapHeight: cal.originalImageHeight,
     );
     if (pt == null) return false;
-    return pt.dx >= 0 &&
-        pt.dx <= cal.originalImageWidth &&
-        pt.dy >= 0 &&
-        pt.dy <= cal.originalImageHeight;
+
+    double xPercent = pt.dx / cal.originalImageWidth;
+    double yPercent = pt.dy / cal.originalImageHeight;
+
+    double minX = cal.minLptsX ?? 0.0;
+    double maxX = cal.maxLptsX ?? 1.0;
+    double minY = cal.minLptsY ?? 0.0;
+    double maxY = cal.maxLptsY ?? 1.0;
+
+    double topY = 1.0 - maxY;
+    double bottomY = 1.0 - minY;
+
+    double realMinX = math.min(minX, maxX);
+    double realMaxX = math.max(minX, maxX);
+    double realMinY = math.min(topY, bottomY);
+    double realMaxY = math.max(topY, bottomY);
+
+    return xPercent >= realMinX &&
+        xPercent <= realMaxX &&
+        yPercent >= realMinY &&
+        yPercent <= realMaxY;
   }
 
   Offset? getPixelOffset({
@@ -903,13 +963,7 @@ class GeoreferenceService {
       latlong2.LatLng(corners[1]!['lat']!, corners[1]!['lon']!),
     );
     
-    // TEMPORARY DEBUG
-    print('=== DEBUG GEOREF ===');
-    print('Esquina SW: ${bounds.southWest}');
-    print('Esquina NE: ${bounds.northEast}');
-    print('Proyección usada: ${cal.projectionIdentifier}');
-    print('Matriz Afín: A=${cal.matrixA}, B=${cal.matrixB}, C=${cal.matrixC}, D=${cal.matrixD}, E=${cal.matrixE}, F=${cal.matrixF}');
-    print('===================');
+    // Bounding box debug complete
 
     return bounds;
   }

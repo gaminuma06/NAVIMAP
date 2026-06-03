@@ -9,7 +9,27 @@ import 'screens/settings_screen.dart';
 import 'screens/layer_objects_screen.dart';
 import 'screens/map_layer_library_screen.dart';
 
+import 'dart:ui' show PlatformDispatcher;
+
 void main() {
+  // Interceptar y silenciar errores de aserción del motor web de Flutter (window.dart)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final exception = details.exception;
+    if (exception is AssertionError && exception.toString().contains('window.dart')) {
+      // Ignorar esta aserción específica del motor web
+      return;
+    }
+    FlutterError.presentError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    if (error is AssertionError && error.toString().contains('window.dart')) {
+      // Ignorar de manera segura en el despachador de la plataforma
+      return true;
+    }
+    return false;
+  };
+
   runApp(const NaviMapApp());
 }
 

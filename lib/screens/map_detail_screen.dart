@@ -90,14 +90,11 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
         final document = await PdfDocument.openData(bytes);
         final page = await document.getPage(1);
 
-        final cal = GeoreferenceService().getCalibration(_mapTitle);
         Rect? cropRect;
         double renderWidth = page.width * 2;
         double renderHeight = page.height * 2;
         
-        if (cal != null && cal.minLptsX != null) {
-          print("DEBUG: Página completa: $renderWidth x $renderHeight");
-        }
+        // Página completa: $renderWidth x $renderHeight
 
         // Renderizar la página completa
         final image = await page.render(
@@ -111,21 +108,6 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
           _pdfPageHeight = renderHeight / 2;
           _mapImageBytes = image!.bytes;
           _pdfController = PdfController(document: Future.value(document));
-          
-          // PRINTS DE DIAGNÓSTICO
-          print('========== PDF LOADED: $_mapTitle ==========');
-          print('PDF Page dimensions: ${page.width} x ${page.height}');
-          print('Render dimensions: $renderWidth x $renderHeight');
-          print('Final _pdfPageWidth: $_pdfPageWidth');
-          print('Final _pdfPageHeight: $_pdfPageHeight');
-          print('PDF Ratio: ${_pdfPageWidth / _pdfPageHeight}');
-          
-          final cal = GeoreferenceService().getCalibration(_mapTitle);
-          if (cal != null) {
-            print('Calibration projection: ${cal.projectionIdentifier}');
-            print('Bounds: S=${cal.boundsSouth}, N=${cal.boundsNorth}, W=${cal.boundsWest}, E=${cal.boundsEast}');
-          }
-          print('==========================================');
         });
       } catch (e) {
         setState(() => _errorMessage = 'Error al abrir el PDF: $e');
@@ -264,8 +246,6 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                               
                               setState(() {
                                 _dynamicMinZooms[_mapTitle] = minZoom;
-                                print('✅ GUARDADO: $_mapTitle → minZoom = $minZoom (desde currentZoom = $currentZoom)');
-                                print('📊 Map completo: $_dynamicMinZooms');
                               });
                             });
                           }
@@ -286,7 +266,12 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                             ),
                           ],
                         ),
-                        if (_currentUserLocation != null)
+                        if (_currentUserLocation != null &&
+                            GeoreferenceService().isUserInsideMap(
+                              _mapTitle,
+                              _currentUserLocation!.latitude,
+                              _currentUserLocation!.longitude,
+                            ))
                           MarkerLayer(
                             markers: [
                               Marker(

@@ -54,9 +54,6 @@ class UserLocationService {
     if (!hasPermission) {
       // Usar exactamente la coordenada que obtuviste en Avenza
       // 8°37'23.1" N, 73°43'57.3" W -> 8.623083, -73.732583
-      print(
-        "Iniciando Modo Simulación con coordenadas de Avenza por falta de permisos",
-      );
       simulateLocation(8.623083, -73.732583, heading: 0);
       return;
     }
