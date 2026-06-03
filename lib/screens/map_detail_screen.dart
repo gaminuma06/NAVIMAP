@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/design_system.dart';
 import 'dart:typed_data';
+import 'dart:math' as math;
+import 'dart:async';
 import 'package:pdfx/pdfx.dart';
 import '../services/map_data_service.dart';
 import '../services/user_location_service.dart';
@@ -30,12 +32,23 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   double _pdfPageWidth = 1000;
   double _pdfPageHeight = 1000;
   final GlobalKey _mapAreaKey = GlobalKey();
+  double _currentMapRotation = 0.0;
+  latlong2.LatLng? _currentMapCenter;
+  StreamSubscription? _mapEventSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadMap();
     _initLocationTracking();
+    _mapEventSubscription = _mapController.mapEventStream.listen((event) {
+      if (mounted) {
+        setState(() {
+          _currentMapRotation = event.camera.rotation;
+          _currentMapCenter = event.camera.center;
+        });
+      }
+    });
   }
 
   void _initLocationTracking() {
@@ -164,6 +177,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
   @override
   void dispose() {
+    _mapEventSubscription?.cancel();
     UserLocationService().stopTracking();
     _pdfController?.dispose();
     super.dispose();
@@ -172,11 +186,15 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   @override
   Widget build(BuildContext context) {
     Map<String, double>? centerLatLon;
-    try {
-      final center = _mapController.camera.center;
-      centerLatLon = {'lat': center.latitude, 'lon': center.longitude};
-    } catch (_) {
-      // MapController not ready yet
+    final activeCenter = _currentMapCenter ?? (() {
+      try {
+        return _mapController.camera.center;
+      } catch (_) {
+        return null;
+      }
+    })();
+    if (activeCenter != null) {
+      centerLatLon = {'lat': activeCenter.latitude, 'lon': activeCenter.longitude};
     }
 
     return Scaffold(
@@ -265,7 +283,10 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                         minZoom: _dynamicMinZooms[_mapTitle] ?? 1.0,
                         maxZoom: 22.0,
                         onPositionChanged: (camera, hasGesture) {
-                          setState(() {});
+                          setState(() {
+                            _currentMapRotation = camera.rotation;
+                            _currentMapCenter = camera.center;
+                          });
                         },
                         onMapReady: () {
                           if (!_dynamicMinZooms.containsKey(_mapTitle)) {
@@ -350,10 +371,47 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
             ),
           ),
 
-          Positioned(
-            top: 20,
-            right: 20,
-            child: _buildCircularButton(Icons.navigation_outlined),
+          Builder(
+            builder: (context) {
+              final double mapRotation = _currentMapRotation;
+              final bool isRotated = mapRotation.abs() > 0.1;
+
+              if (!isRotated) return const SizedBox.shrink();
+
+              return Positioned(
+                top: 20,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () {
+                    _mapController.rotate(0.0);
+                    setState(() {
+                      _currentMapRotation = 0.0;
+                    });
+                  },
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF0D0D0D),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black45,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: CustomPaint(
+                      size: const Size(50, 50),
+                      painter: CompassPainter(
+                        rotation: -mapRotation * math.pi / 180.0,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
           ),
 
           Positioned(
@@ -450,5 +508,74 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       ),
       child: Icon(icon, color: color ?? DesignSystem.primary, size: 26),
     );
+  }
+}
+
+class CompassPainter extends CustomPainter {
+  final double rotation; // en radianes
+
+  CompassPainter({required this.rotation});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(rotation);
+
+    // Dibujar aguja Norte (Triángulo rojo)
+    final northPaint = Paint()
+      ..color = Colors.red
+      ..style = PaintingStyle.fill;
+    final northPath = Path();
+    northPath.moveTo(0, -radius * 0.55); // Punta apuntando al Norte
+    northPath.lineTo(-radius * 0.22, 0);  // Esquina izquierda
+    northPath.lineTo(radius * 0.22, 0);   // Esquina derecha
+    northPath.close();
+    canvas.drawPath(northPath, northPaint);
+
+    // Dibujar aguja Sur (Triángulo gris/blanco)
+    final southPaint = Paint()
+      ..color = Colors.grey[400]!
+      ..style = PaintingStyle.fill;
+    final southPath = Path();
+    southPath.moveTo(0, radius * 0.55);  // Punta apuntando al Sur
+    southPath.lineTo(-radius * 0.22, 0);  // Esquina izquierda
+    southPath.lineTo(radius * 0.22, 0);   // Esquina derecha
+    southPath.close();
+    canvas.drawPath(southPath, southPaint);
+
+    // Dibujar pasador central blanco
+    final centerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset.zero, 3.5, centerPaint);
+
+    // Dibujar la letra 'N' arriba del puntero Norte
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'N',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(-textPainter.width / 2, -radius * 0.88),
+    );
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CompassPainter oldDelegate) {
+    return oldDelegate.rotation != rotation;
   }
 }
