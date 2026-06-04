@@ -132,6 +132,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
           obj['longitude'] != null) {
         final lat = obj['latitude'] as double;
         final lon = obj['longitude'] as double;
+        final colorValue = obj['color'] as int? ?? 0xFFFF1744;
         markers.add(
           Marker(
             point: latlong2.LatLng(lat, lon),
@@ -142,7 +143,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
               message: obj['name'],
               child: Icon(
                 Icons.location_on,
-                color: Colors.redAccent,
+                color: Color(colorValue),
                 size: markerSize,
                 shadows: const [
                   Shadow(

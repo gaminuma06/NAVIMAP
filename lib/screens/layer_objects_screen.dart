@@ -3,6 +3,7 @@ import 'package:dotted_border/dotted_border.dart';
 import '../theme/design_system.dart';
 import '../widgets/object_list_item.dart';
 import '../services/layer_store.dart';
+import 'object_attributes_screen.dart';
 
 class LayerObjectsScreen extends StatefulWidget {
   final String layerName;
@@ -51,41 +52,84 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
   void _deleteObject(int index) {
     final objectToDelete = _filteredObjects[index];
     final realIndex = _allObjects.indexOf(objectToDelete);
+    bool alsoDeleteCrossContext = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: DesignSystem.surface,
-        title: const Text(
-          '¿Eliminar objeto?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Text(
-          '¿Deseas eliminar "${objectToDelete['name']}"?',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCELAR'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DesignSystem.error,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: DesignSystem.surface,
+            title: const Text(
+              '¿Eliminar objeto?',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            onPressed: () {
-              setState(
-                () => LayerStore.removeObject(
-                  widget.layerName,
-                  realIndex,
-                  mapContext: widget.mapContext,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '¿Deseas eliminar "${objectToDelete['name']}"?',
+                  style: const TextStyle(color: Colors.white70),
                 ),
-              );
-              Navigator.pop(context);
-            },
-            child: const Text('ELIMINAR'),
-          ),
-        ],
+                const SizedBox(height: DesignSystem.spacingMd),
+                Theme(
+                  data: ThemeData(
+                    unselectedWidgetColor: Colors.white30,
+                  ),
+                  child: CheckboxListTile(
+                    title: Text(
+                      widget.mapContext != null
+                          ? 'Eliminar también del menú de capas principal'
+                          : 'Eliminar también de la capa de los mapas',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    value: alsoDeleteCrossContext,
+                    activeColor: DesignSystem.primary,
+                    checkColor: Colors.black,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    onChanged: (val) {
+                      setDialogState(() {
+                        alsoDeleteCrossContext = val ?? false;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CANCELAR'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: DesignSystem.error,
+                ),
+                onPressed: () {
+                  setState(() {
+                    if (alsoDeleteCrossContext) {
+                      LayerStore.removeObjectCrossContext(
+                        widget.layerName,
+                        objectToDelete,
+                        currentContext: widget.mapContext,
+                      );
+                    } else {
+                      LayerStore.removeObject(
+                        widget.layerName,
+                        realIndex,
+                        mapContext: widget.mapContext,
+                      );
+                    }
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('ELIMINAR'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -156,6 +200,56 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
     );
   }
 
+  void _showUpdateSyncDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: DesignSystem.surface,
+        title: const Text(
+          'Actualizar objetos',
+          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          '¿Estás seguro de que deseas actualizar los objetos en las capas? '
+          'Esto sincronizará los objetos entre la capa del mapa y la capa principal global, '
+          'haciendo que ambas contengan todos los objetos.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DesignSystem.primary,
+            ),
+            onPressed: () {
+              setState(() {
+                LayerStore.synchronizeLayers(
+                  widget.layerName,
+                  mapContext: widget.mapContext,
+                );
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Objetos sincronizados y actualizados correctamente.'),
+                  backgroundColor: DesignSystem.primary,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text(
+              'ACTUALIZAR',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -203,9 +297,38 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
               padding: const EdgeInsets.symmetric(
                 horizontal: DesignSystem.spacingMd,
               ),
-              child: Text(
-                'OBJETOS (${_filteredObjects.length})',
-                style: DesignSystem.labelCaps.copyWith(color: Colors.white38),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'OBJETOS (${_filteredObjects.length})',
+                    style: DesignSystem.labelCaps.copyWith(color: Colors.white38),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DesignSystem.spacingSm,
+                        vertical: DesignSystem.spacingXs,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: _showUpdateSyncDialog,
+                    icon: const Icon(
+                      Icons.sync,
+                      size: 14,
+                      color: DesignSystem.primary,
+                    ),
+                    label: const Text(
+                      'Actualizar objetos en las capas',
+                      style: TextStyle(
+                        color: DesignSystem.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: DesignSystem.spacingMd),
@@ -223,7 +346,23 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
                           name: obj['name'],
                           type: obj['type'],
                           value: obj['value'],
-                          onTap: () {},
+                          color: obj['color'] != null ? Color(obj['color'] as int) : null,
+                           onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ObjectAttributesScreen(
+                                  layerName: widget.layerName,
+                                  object: obj,
+                                  mapContext: widget.mapContext,
+                                ),
+                              ),
+                            ).then((value) {
+                              if (value == true) {
+                                setState(() {});
+                              }
+                            });
+                          },
                           onDelete: () => _deleteObject(index),
                           onDuplicate: () => _duplicateObject(index),
                           onMoveToLayer: () => _showMoveDialog(index),

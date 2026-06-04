@@ -12,6 +12,7 @@ class ObjectListItem extends StatelessWidget {
   final VoidCallback? onDuplicate;
   final VoidCallback? onExport;
   final VoidCallback? onMoveToLayer;
+  final Color? color;
 
   const ObjectListItem({
     super.key,
@@ -23,6 +24,7 @@ class ObjectListItem extends StatelessWidget {
     this.onDuplicate,
     this.onExport,
     this.onMoveToLayer,
+    this.color,
   });
 
   @override
@@ -142,27 +144,29 @@ class ObjectListItem extends StatelessWidget {
                     ],
                   ),
                 ),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.delete_outline,
-                        size: 18,
-                        color: DesignSystem.error,
-                      ),
-                      SizedBox(width: 12),
-                      Text(
-                        'Eliminar',
-                        style: TextStyle(
+                if (onDelete != null) ...[
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.delete_outline,
+                          size: 18,
                           color: DesignSystem.error,
-                          fontSize: 14,
                         ),
-                      ),
-                    ],
+                        SizedBox(width: 12),
+                        Text(
+                          'Eliminar',
+                          style: TextStyle(
+                            color: DesignSystem.error,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ],
@@ -173,24 +177,23 @@ class ObjectListItem extends StatelessWidget {
 
   Widget _buildIcon() {
     IconData icon;
-    Color color;
+    Color iconColor;
 
     switch (type) {
       case GeoObjectType.point:
         icon = Icons.location_on;
-        color = Colors.redAccent;
+        iconColor = color ?? Colors.redAccent;
         break;
       case GeoObjectType.line:
         icon = Icons.horizontal_rule;
-        color = Colors.orangeAccent;
+        iconColor = color ?? Colors.orangeAccent;
         break;
       case GeoObjectType.polygon:
-        icon = Icons
-            .pentagon; // Cambiado a Pentágono para representar área cerrada
-        color = Colors.blueAccent;
+        icon = Icons.pentagon;
+        iconColor = color ?? Colors.blueAccent;
         break;
     }
 
-    return Icon(icon, color: color, size: 24);
+    return Icon(icon, color: iconColor, size: 24);
   }
 }
