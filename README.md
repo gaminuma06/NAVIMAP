@@ -4,16 +4,23 @@
 
 ## 🚀 Innovaciones y Capacidades Tácticas
 
-### 🔄 Motor de Sincronización Bi-direccional en Cascada
+### 🔄 Motor de Sincronización Bi-direccional y Borrado Cruzado
 NAVIMAP integra una arquitectura de datos "Shadow Sync" que garantiza la integridad total de la información:
 * **Respaldo Maestro Inteligente**: El Menú Capa Principal actúa como una caja fuerte global. Cualquier objeto creado o modificado en un mapa se replica instantáneamente en el respaldo global.
-* **Sincronización en Cascada**: Las modificaciones en la biblioteca global se propagan automáticamente a todos los mapas que contienen esas capas, manteniendo la coherencia operativa en todo momento.
-* **Independencia Estructural**: Eliminar una capa de un mapa específico no afecta al respaldo global, permitiendo una limpieza táctica de la vista de trabajo sin pérdida de datos históricos.
+* **Borrado Cruzado Opcional**: Al eliminar un objeto, el sistema ofrece una casilla de confirmación interactiva para decidir si la eliminación debe ser local o propagarse de forma cruzada (eliminando del menú global o de todos los mapas vinculados).
+* **Sincronización Proactiva (Botón de Actualización)**: Opción rápida para calcular la unión de objetos sin duplicados entre el mapa y la biblioteca global, alineando ambas listas de forma inmediata.
+* **Consistencia Case-Insensitive**: Resolución automática mediante nombres canónicos para evitar discrepancias en la sincronización causadas por diferencias de mayúsculas/minúsculas.
 
-### 📚 Gestión Avanzada de Bibliotecas
-* **Multi-Mapa Independiente**: Cada proyecto cartográfico posee su propia biblioteca de capas local.
-* **Importación Inteligente**: Sistema de selección múltiple (checkbox) para traer capas y objetos desde el respaldo global hacia mapas específicos en segundos.
-* **Mover es Copiar**: Filosofía de despliegue múltiple donde mover un objeto entre capas genera una replicación estratégica, permitiendo que la información coexista en diferentes contextos sin destruir el original.
+### 🎨 Edición de Atributos y Colores Dinámicos
+* **Ventana de Atributos Detallados**: Acceso directo al tocar cualquier objeto para modificar su nombre y coordenadas (mediante campos individuales de latitud y longitud).
+* **Colores Tácticos del Pin**: Selector rápido de 6 colores (Rojo, Azul, Verde, Amarillo, Naranja, Morado) que actualiza dinámicamente tanto el marcador en el mapa como el icono representativo en la tarjeta del listado.
+* **Fechas de Creación e Historial de Edición**: Fecha automática e inmutable que se actualiza únicamente si el usuario realiza modificaciones a las coordenadas del objeto.
+
+### 📚 Gestión Avanzada de Bibliotecas y Capa Activa
+* **Destacado de Capa Activa**: La capa actualmente activa en el mapa se resalta visualmente con un contorno verde y el texto de estado "Capa activa", mientras que las inactivas ocultan sus subtítulos para una interfaz más despejada.
+* **Reordenamiento Dinámico**: La capa seleccionada como activa se sitúa automáticamente al principio de la lista de capas para agilizar el acceso operativo.
+* **Activación desde Menú de Opciones**: Acceso directo para activar capas directamente desde su menú contextual de tres puntos, evitando pasos adicionales.
+
 
 ### 🎯 Interfaz de Precisión Quirúrgica
 * **Mira de Precisión**: Retícula central permanente para la captura exacta de coordenadas y alineación de activos sobre el terreno.
