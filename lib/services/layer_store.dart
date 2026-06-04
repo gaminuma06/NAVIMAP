@@ -10,6 +10,9 @@ class LayerStore {
   // ALMACENAMIENTO UNIFICADO DE OBJETOS
   static Map<String, List<Map<String, dynamic>>> mapLayerObjects = {};
 
+  // CAPA ACTIVA POR MAPA
+  static Map<String, String?> activeMapLayer = {};
+
   // Obtiene las capas según el contexto (Global o Mapa)
   static List<Map<String, dynamic>> getLayers(String? mapContext) {
     if (mapContext == null) return layers;

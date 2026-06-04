@@ -279,9 +279,21 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                       itemCount: _filteredLayers.length,
                       itemBuilder: (context, index) {
                         final layer = _filteredLayers[index];
+                        final activeLayer = LayerStore.activeMapLayer[widget.mapTitle];
+                        final isActive = layer['title'] == activeLayer;
                         return LayerListItem(
                           title: layer['title'],
                           objectCount: layer['objects'] ?? 0,
+                          isActive: isActive,
+                          onToggleActive: () {
+                            setState(() {
+                              if (isActive) {
+                                LayerStore.activeMapLayer[widget.mapTitle] = null;
+                              } else {
+                                LayerStore.activeMapLayer[widget.mapTitle] = layer['title'];
+                              }
+                            });
+                          },
                           onTap: () {
                             Navigator.pushNamed(
                               context,

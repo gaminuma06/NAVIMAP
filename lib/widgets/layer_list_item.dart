@@ -8,6 +8,8 @@ class LayerListItem extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onRename;
   final VoidCallback? onExport;
+  final bool? isActive;
+  final VoidCallback? onToggleActive;
 
   const LayerListItem({
     super.key,
@@ -17,6 +19,8 @@ class LayerListItem extends StatelessWidget {
     this.onDelete,
     this.onRename,
     this.onExport,
+    this.isActive,
+    this.onToggleActive,
   });
 
   @override
@@ -33,6 +37,17 @@ class LayerListItem extends StatelessWidget {
         ),
         child: Row(
           children: [
+            if (isActive != null) ...[
+              GestureDetector(
+                onTap: onToggleActive,
+                child: Icon(
+                  isActive! ? Icons.radio_button_checked : Icons.radio_button_off,
+                  color: isActive! ? DesignSystem.primary : Colors.white24,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: DesignSystem.spacingMd),
+            ],
             // Layer Icon Area
             Container(
               width: 56,

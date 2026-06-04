@@ -5,9 +5,11 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'package:pdfx/pdfx.dart';
 import '../services/map_data_service.dart';
+import '../services/layer_store.dart';
 import '../services/user_location_service.dart';
 import '../services/georeference_service.dart';
 import '../widgets/user_location_marker.dart';
+import '../widgets/object_list_item.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
@@ -35,6 +37,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   final GlobalKey _mapAreaKey = GlobalKey();
   double _currentMapRotation = 0.0;
   latlong2.LatLng? _currentMapCenter;
+  double _currentMapZoom = 15.0;
   StreamSubscription? _mapEventSubscription;
 
   @override
@@ -47,6 +50,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
         setState(() {
           _currentMapRotation = event.camera.rotation;
           _currentMapCenter = event.camera.center;
+          _currentMapZoom = event.camera.zoom;
         });
       }
     });
@@ -107,6 +111,187 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     if (_currentUserLocation != null) {
       // Trigger a rebuild to update the MarkerLayer
     }
+  }
+
+  double _calculateMarkerSize(double zoom) {
+    double size = 36.0 + (zoom - 15.0) * 3.0;
+    return size.clamp(16.0, 64.0);
+  }
+
+  List<Marker> _getPinMarkers() {
+    final List<Marker> markers = [];
+    final activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null) return markers;
+
+    final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
+    final markerSize = _calculateMarkerSize(_currentMapZoom);
+
+    for (var obj in objects) {
+      if (obj['type'] == GeoObjectType.point &&
+          obj['latitude'] != null &&
+          obj['longitude'] != null) {
+        final lat = obj['latitude'] as double;
+        final lon = obj['longitude'] as double;
+        markers.add(
+          Marker(
+            point: latlong2.LatLng(lat, lon),
+            width: markerSize,
+            height: markerSize,
+            alignment: Alignment.topCenter,
+            child: Tooltip(
+              message: obj['name'],
+              child: Icon(
+                Icons.location_on,
+                color: Colors.redAccent,
+                size: markerSize,
+                shadows: const [
+                  Shadow(
+                    color: Colors.black45,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    return markers;
+  }
+
+  void _handlePlacePin() {
+    final center = _currentMapCenter ?? (() {
+      try {
+        return _mapController.camera.center;
+      } catch (_) {
+        return const latlong2.LatLng(8.623083, -73.732583);
+      }
+    })();
+    final double lat = center.latitude;
+    final double lon = center.longitude;
+
+    String? activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null) {
+      // Buscar si ya tiene capas vinculadas
+      final existingLayers = LayerStore.getLayers(_mapTitle);
+      if (existingLayers.isNotEmpty) {
+        activeLayer = existingLayers.first['title'];
+        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      } else {
+        // Buscar un nombre único como "Capa 1", "Capa 2", etc. a nivel global
+        int i = 1;
+        String candidate = 'Capa $i';
+        while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+          i++;
+          candidate = 'Capa $i';
+        }
+        activeLayer = candidate;
+        LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
+        existingLayers.add({'title': activeLayer, 'objects': 0});
+        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      }
+    }
+
+    final objects = LayerStore.getObjects(activeLayer!, mapContext: _mapTitle);
+    final pointsCount = objects.where((obj) => obj['type'] == GeoObjectType.point).length;
+    final defaultPointName = 'Punto ${pointsCount + 1}';
+
+    final controller = TextEditingController(text: defaultPointName);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: DesignSystem.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.location_on, color: Colors.redAccent),
+            SizedBox(width: 12),
+            Text(
+              'Nuevo Marcador',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ingresa un nombre para el punto en la mira verde:',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Nombre del punto',
+                labelStyle: const TextStyle(color: DesignSystem.primary),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Coordenadas: ${lat.toStringAsFixed(6)}, ${lon.toStringAsFixed(6)}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'monospace'),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Capa de destino: $activeLayer',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DesignSystem.primary,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              final pointName = controller.text.trim();
+              if (pointName.isEmpty) return;
+
+              setState(() {
+                LayerStore.addObject(
+                  activeLayer!,
+                  {
+                    'name': pointName,
+                    'type': GeoObjectType.point,
+                    'value': 'Lat: ${lat.toStringAsFixed(6)}, Lon: ${lon.toStringAsFixed(6)}',
+                    'latitude': lat,
+                    'longitude': lon,
+                  },
+                  mapContext: _mapTitle,
+                );
+              });
+
+              Navigator.pop(context);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Marcador "$pointName" guardado en "$activeLayer"'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            child: const Text('GUARDAR'),
+          ),
+        ],
+      ),
+    );
   }
 
   Uint8List? _mapImageBytes;
@@ -341,6 +526,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                           ],
                         ),
                         MarkerLayer(
+                          markers: _getPinMarkers(),
+                        ),
+                        MarkerLayer(
                           markers: (_currentUserLocation != null &&
                                   GeoreferenceService().isUserInsideMap(
                                     _mapTitle,
@@ -441,9 +629,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
             bottom: 100,
             right: 20,
             child: GestureDetector(
-              onTap: () {
-                // Usamos el GPS real, ya no sobreescribimos con coordenadas simuladas.
-              },
+              onTap: _handlePlacePin,
               child: _buildCircularButton(Icons.location_on),
             ),
           ),
