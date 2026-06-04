@@ -978,7 +978,7 @@ class GeoreferenceService {
     return bounds;
   }
 
-  String _toDMS(double val, bool isLat) {
+  String toDMS(double val, bool isLat) {
     final dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
     val = val.abs();
     final d = val.floor();
@@ -989,10 +989,10 @@ class GeoreferenceService {
   }
 
   String formatDMS(double lat, double lon) {
-    return "${_toDMS(lat, true)}, ${_toDMS(lon, false)}";
+    return "${toDMS(lat, true)}, ${toDMS(lon, false)}";
   }
 
-  String _toDM(double val, bool isLat) {
+  String toDM(double val, bool isLat) {
     final dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
     val = val.abs();
     final d = val.floor();
@@ -1001,7 +1001,7 @@ class GeoreferenceService {
   }
 
   String formatDM(double lat, double lon) {
-    return "${_toDM(lat, true)}, ${_toDM(lon, false)}";
+    return "${toDM(lat, true)}, ${toDM(lon, false)}";
   }
 
   String formatUTM(double lat, double lon) {

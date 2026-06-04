@@ -40,6 +40,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   StreamSubscription? _mapEventSubscription;
   String _coordinateFormat = 'DD';
   double _dragDistance = 0.0;
+  bool _isBottomSheetOpen = false;
 
   @override
   void initState() {
@@ -722,6 +723,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
 
   void _showCoordinateFormatSelector(BuildContext context) {
+    if (_isBottomSheetOpen) return;
+    _isBottomSheetOpen = true;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -780,7 +784,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
           },
         );
       },
-    );
+    ).then((_) {
+      _isBottomSheetOpen = false;
+    });
   }
 
   Widget _buildBottomSheetItem(BuildContext context, String value, String label, StateSetter setModalState) {

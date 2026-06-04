@@ -3,6 +3,7 @@ import 'package:dotted_border/dotted_border.dart';
 import '../theme/design_system.dart';
 import '../widgets/object_list_item.dart';
 import '../services/layer_store.dart';
+import '../services/georeference_service.dart';
 import 'object_attributes_screen.dart';
 
 class LayerObjectsScreen extends StatefulWidget {
@@ -23,6 +24,19 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String _selectedFormat = 'DD';
+
+  bool get _isActiveLayer {
+    if (widget.mapContext == null) return false;
+    return LayerStore.activeMapLayer[widget.mapContext!] == widget.layerName;
+  }
+
+  String get _currentFormat {
+    if (_isActiveLayer) {
+      return GeoreferenceService().getCoordinateFormat(widget.mapContext!);
+    }
+    return _selectedFormat;
+  }
 
   @override
   void initState() {
@@ -273,6 +287,12 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
                 ),
               ),
         actions: [
+          if (!_isActiveLayer)
+            IconButton(
+              icon: const Icon(Icons.straighten, color: DesignSystem.primary),
+              tooltip: 'Formato de Coordenadas',
+              onPressed: _showFormatSelector,
+            ),
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
@@ -345,7 +365,7 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
                         return ObjectListItem(
                           name: obj['name'],
                           type: obj['type'],
-                          value: obj['value'],
+                          value: _getObjectDisplayValue(obj),
                           color: obj['color'] != null ? Color(obj['color'] as int) : null,
                            onTap: () {
                             Navigator.push(
@@ -455,6 +475,124 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
             style: TextStyle(color: Colors.white24, fontSize: 13),
           ),
         ],
+      ),
+    );
+  }
+
+  String _getObjectDisplayValue(Map<String, dynamic> obj) {
+    if (obj['type'] == GeoObjectType.point &&
+        obj['latitude'] != null &&
+        obj['longitude'] != null) {
+      final double lat = obj['latitude'] as double;
+      final double lon = obj['longitude'] as double;
+      final format = obj['coordinateFormat'] as String? ?? _currentFormat;
+      return GeoreferenceService().formatCoordinates(
+        lat,
+        lon,
+        format,
+      );
+    }
+    return obj['value'] ?? '';
+  }
+
+  void _showFormatSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      enableDrag: true,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                border: Border(
+                  top: BorderSide(color: Colors.white10, width: 1),
+                ),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white30,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Formato de Coordenadas de la Capa',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const Divider(color: Colors.white10),
+                    _buildBottomSheetItem('DD', 'Grados Decimales (DD)', setModalState),
+                    _buildBottomSheetItem('DM', 'Grados y Minutos (DM)', setModalState),
+                    _buildBottomSheetItem('DMS', 'Grados, Minutos y Segundos (DMS)', setModalState),
+                    _buildBottomSheetItem('UTM', 'UTM (WGS84)', setModalState),
+                    _buildBottomSheetItem('ON', 'Origen Nacional (EPSG:9377)', setModalState),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomSheetItem(String value, String label, StateSetter setModalState) {
+    final bool isSelected = _selectedFormat == value;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedFormat = value;
+        });
+        setModalState(() {});
+        Navigator.pop(context);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? DesignSystem.primary : Colors.white70,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: DesignSystem.primary,
+                size: 20,
+              )
+            else
+              const Icon(
+                Icons.circle_outlined,
+                color: Colors.white24,
+                size: 20,
+              ),
+          ],
+        ),
       ),
     );
   }

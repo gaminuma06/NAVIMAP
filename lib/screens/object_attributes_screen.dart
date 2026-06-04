@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/design_system.dart';
 import '../services/layer_store.dart';
+import '../services/georeference_service.dart';
 
 class ObjectAttributesScreen extends StatefulWidget {
   final String layerName;
@@ -25,6 +26,9 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
   late TextEditingController _lonController;
   late int _selectedColor;
   late String _createdAt;
+  late String _selectedFormat;
+  late double _currentLat;
+  late double _currentLon;
 
   final List<int> _colorOptions = [
     0xFFFF1744, // Rojo
@@ -39,18 +43,27 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.object['name']);
-    _latController = TextEditingController(
-      text: widget.object['latitude']?.toString() ?? '',
-    );
-    _lonController = TextEditingController(
-      text: widget.object['longitude']?.toString() ?? '',
-    );
+    
+    _currentLat = widget.object['latitude'] as double? ?? 0.0;
+    _currentLon = widget.object['longitude'] as double? ?? 0.0;
+    
+    _latController = TextEditingController();
+    _lonController = TextEditingController();
+    
     _selectedColor = widget.object['color'] as int? ?? 0xFFFF1744;
     _createdAt = widget.object['createdAt'] as String? ?? DateTime.now().toIso8601String();
+    _selectedFormat = widget.object['coordinateFormat'] as String? ?? 'DD';
+    
+    _updateTextFields();
+    
+    _latController.addListener(_onCoordsChanged);
+    _lonController.addListener(_onCoordsChanged);
   }
 
   @override
   void dispose() {
+    _latController.removeListener(_onCoordsChanged);
+    _lonController.removeListener(_onCoordsChanged);
     _nameController.dispose();
     _latController.dispose();
     _lonController.dispose();
@@ -75,8 +88,8 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final newName = _nameController.text.trim();
-    final newLat = double.parse(_latController.text.trim());
-    final newLon = double.parse(_lonController.text.trim());
+    final newLat = _currentLat;
+    final newLon = _currentLon;
 
     final double originalLat = widget.object['latitude'] as double? ?? 0.0;
     final double originalLon = widget.object['longitude'] as double? ?? 0.0;
@@ -95,6 +108,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
       'longitude': newLon,
       'color': _selectedColor,
       'createdAt': finalCreatedAt,
+      'coordinateFormat': _selectedFormat,
     };
 
     LayerStore.updateObject(
@@ -178,7 +192,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: 'Latitud',
+                  labelText: _latLabel,
                   labelStyle: const TextStyle(color: Colors.white38),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.05),
@@ -190,7 +204,9 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                     borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                   ),
                 ),
+                readOnly: _currentFormat != 'DD',
                 validator: (value) {
+                  if (_currentFormat != 'DD') return null;
                   if (value == null || value.trim().isEmpty) {
                     return 'Por favor ingresa la latitud';
                   }
@@ -210,7 +226,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: 'Longitud',
+                  labelText: _lonLabel,
                   labelStyle: const TextStyle(color: Colors.white38),
                   filled: true,
                   fillColor: Colors.white.withOpacity(0.05),
@@ -222,7 +238,9 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                     borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                   ),
                 ),
+                readOnly: _currentFormat != 'DD',
                 validator: (value) {
+                  if (_currentFormat != 'DD') return null;
                   if (value == null || value.trim().isEmpty) {
                     return 'Por favor ingresa la longitud';
                   }
@@ -236,6 +254,33 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                   return null;
                 },
               ),
+
+              if (!_isActiveLayer) ...[
+                const SizedBox(height: DesignSystem.spacingMd),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: DesignSystem.primary,
+                      side: const BorderSide(color: DesignSystem.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                      ),
+                    ),
+                    onPressed: _showFormatSelector,
+                    icon: const Icon(Icons.straighten, size: 18),
+                    label: const Text(
+                      'CAMBIAR SISTEMA DE COORDENADAS',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: DesignSystem.spacingLg),
               const Text(
                 'COLOR DEL PIN',
@@ -352,6 +397,198 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  bool get _isActiveLayer {
+    if (widget.mapContext == null) return false;
+    return LayerStore.activeMapLayer[widget.mapContext!] == widget.layerName;
+  }
+
+  void _onCoordsChanged() {
+    if (_currentFormat == 'DD') {
+      final lat = double.tryParse(_latController.text.trim());
+      final lon = double.tryParse(_lonController.text.trim());
+      if (lat != null) {
+        _currentLat = lat;
+      }
+      if (lon != null) {
+        _currentLon = lon;
+      }
+    }
+    setState(() {});
+  }
+
+  String get _currentFormat {
+    if (_isActiveLayer) {
+      if (widget.mapContext != null) {
+        return GeoreferenceService().getCoordinateFormat(widget.mapContext!);
+      }
+    }
+    return _selectedFormat;
+  }
+
+  String get _latLabel {
+    final format = _currentFormat;
+    switch (format) {
+      case 'UTM':
+        return 'Easting (UTM)';
+      case 'ON':
+        return 'Easting (Origen Nacional)';
+      case 'DM':
+        return 'Latitud (DM)';
+      case 'DMS':
+        return 'Latitud (DMS)';
+      case 'DD':
+      default:
+        return 'Latitud (DD)';
+    }
+  }
+
+  String get _lonLabel {
+    final format = _currentFormat;
+    switch (format) {
+      case 'UTM':
+        return 'Northing (UTM)';
+      case 'ON':
+        return 'Northing (Origen Nacional)';
+      case 'DM':
+        return 'Longitud (DM)';
+      case 'DMS':
+        return 'Longitud (DMS)';
+      case 'DD':
+      default:
+        return 'Longitud (DD)';
+    }
+  }
+
+  Map<String, String> _getCoordinatesForFormat(double lat, double lon, String format) {
+    final formatted = GeoreferenceService().formatCoordinates(lat, lon, format);
+    final parts = formatted.split(', ');
+    if (parts.length >= 2) {
+      return {
+        'lat': parts[0],
+        'lon': parts[1],
+      };
+    }
+    return {
+      'lat': formatted,
+      'lon': '',
+    };
+  }
+
+  void _updateTextFields() {
+    _latController.removeListener(_onCoordsChanged);
+    _lonController.removeListener(_onCoordsChanged);
+
+    final coords = _getCoordinatesForFormat(_currentLat, _currentLon, _currentFormat);
+    _latController.text = coords['lat'] ?? '';
+    _lonController.text = coords['lon'] ?? '';
+
+    _latController.addListener(_onCoordsChanged);
+    _lonController.addListener(_onCoordsChanged);
+  }
+
+  void _showFormatSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      enableDrag: true,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                border: Border(
+                  top: BorderSide(color: Colors.white10, width: 1),
+                ),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white30,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Formato de Coordenadas del Marcador',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const Divider(color: Colors.white10),
+                    _buildBottomSheetItem('DD', 'Grados Decimales (DD)', setModalState),
+                    _buildBottomSheetItem('DM', 'Grados y Minutos (DM)', setModalState),
+                    _buildBottomSheetItem('DMS', 'Grados, Minutos y Segundos (DMS)', setModalState),
+                    _buildBottomSheetItem('UTM', 'UTM (WGS84)', setModalState),
+                    _buildBottomSheetItem('ON', 'Origen Nacional (EPSG:9377)', setModalState),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomSheetItem(String value, String label, StateSetter setModalState) {
+    final bool isSelected = _selectedFormat == value;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedFormat = value;
+          _updateTextFields();
+        });
+        setModalState(() {});
+        Navigator.pop(context);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? DesignSystem.primary : Colors.white70,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: DesignSystem.primary,
+                size: 20,
+              )
+            else
+              const Icon(
+                Icons.circle_outlined,
+                color: Colors.white24,
+                size: 20,
+              ),
+          ],
+        ),
       ),
     );
   }
