@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:proj4dart/proj4dart.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
 import 'package:flutter_map/flutter_map.dart' as flutter_map;
-import '../services/user_location_service.dart';
 
 enum MapSpatialStatus { within, outside, notReferenced }
 
@@ -73,10 +72,20 @@ class GeoreferenceService {
   }
 
   final Map<String, MapCalibration> _dynamicCalibrations = {};
+  final Map<String, String> _coordinateFormats = {};
   String debugInfo = "";
 
   void clearCache(String mapTitle) {
     _dynamicCalibrations.remove(mapTitle);
+    _coordinateFormats.remove(mapTitle);
+  }
+
+  void setCoordinateFormat(String mapTitle, String format) {
+    _coordinateFormats[mapTitle] = format;
+  }
+
+  String getCoordinateFormat(String mapTitle) {
+    return _coordinateFormats[mapTitle] ?? 'DD';
   }
 
   Future<void> scanGeoPdfMetadata(String mapTitle, Uint8List bytes) async {
@@ -156,7 +165,7 @@ class GeoreferenceService {
           try {
             List<int> compressed = match.group(1)!.codeUnits;
             List<int> decompressed = zlib.decode(compressed);
-            content += "\n" + String.fromCharCodes(decompressed);
+            content += "\n${String.fromCharCodes(decompressed)}";
           } catch (_) {}
         }
       } catch (_) {}
@@ -856,8 +865,9 @@ class GeoreferenceService {
     if (xPercent < -10.0 ||
         xPercent > 11.0 ||
         yPercent < -10.0 ||
-        yPercent > 11.0)
+        yPercent > 11.0) {
       return null;
+    }
     return Offset(xPercent * mapWidth, yPercent * mapHeight);
   }
 
@@ -966,5 +976,81 @@ class GeoreferenceService {
     // Bounding box debug complete
 
     return bounds;
+  }
+
+  String _toDMS(double val, bool isLat) {
+    final dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
+    val = val.abs();
+    final d = val.floor();
+    final minFloat = (val - d) * 60;
+    final m = minFloat.floor();
+    final s = ((minFloat - m) * 60).toStringAsFixed(8);
+    return "$d° $m' $s\" $dir";
+  }
+
+  String formatDMS(double lat, double lon) {
+    return "${_toDMS(lat, true)}, ${_toDMS(lon, false)}";
+  }
+
+  String _toDM(double val, bool isLat) {
+    final dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
+    val = val.abs();
+    final d = val.floor();
+    final m = ((val - d) * 60).toStringAsFixed(8);
+    return "$d° $m' $dir";
+  }
+
+  String formatDM(double lat, double lon) {
+    return "${_toDM(lat, true)}, ${_toDM(lon, false)}";
+  }
+
+  String formatUTM(double lat, double lon) {
+    try {
+      final zone = (((lon + 180) / 6).floor() + 1).clamp(1, 60);
+      final isSouth = lat < 0;
+      final projKey = 'UTM_$zone${isSouth ? "S" : "N"}';
+      
+      var projUtm = Projection.get(projKey);
+      if (projUtm == null) {
+        final southFlag = isSouth ? ' +south' : '';
+        final projDef = '+proj=utm +zone=$zone$southFlag +ellps=WGS84 +datum=WGS84 +units=m +no_defs';
+        projUtm = Projection.add(projKey, projDef);
+      }
+      
+      final projWgs84 = Projection.get('EPSG:4326') ?? Projection.WGS84;
+      final point = projWgs84.transform(projUtm, Point(x: lon, y: lat));
+      
+      return 'E: ${point.x.toStringAsFixed(8)}, N: ${point.y.toStringAsFixed(8)}';
+    } catch (e) {
+      return 'Error de cálculo';
+    }
+  }
+
+  String formatOrigenNacional(double lat, double lon) {
+    try {
+      final projWgs84 = Projection.get('EPSG:4326') ?? Projection.WGS84;
+      final projNational = Projection.get('EPSG:9377');
+      if (projNational == null) return 'EPSG:9377 no cargada';
+      final point = projWgs84.transform(projNational, Point(x: lon, y: lat));
+      return 'E: ${point.x.toStringAsFixed(8)}, N: ${point.y.toStringAsFixed(8)}';
+    } catch (e) {
+      return 'Error de cálculo';
+    }
+  }
+
+  String formatCoordinates(double lat, double lon, String format) {
+    switch (format) {
+      case 'DM':
+        return formatDM(lat, lon);
+      case 'DMS':
+        return formatDMS(lat, lon);
+      case 'UTM':
+        return formatUTM(lat, lon);
+      case 'ON':
+        return formatOrigenNacional(lat, lon);
+      case 'DD':
+      default:
+        return '${lat.toStringAsFixed(8)}, ${lon.toStringAsFixed(8)}';
+    }
   }
 }

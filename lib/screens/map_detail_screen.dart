@@ -28,7 +28,6 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   static final Map<String, double> _dynamicMinZooms = {};
   
   String _mapTitle = '';
-  String? _errorMessage;
 
   UserLocationData? _currentUserLocation;
   StreamSubscription<UserLocationData>? _locationSubscription;
@@ -39,6 +38,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   latlong2.LatLng? _currentMapCenter;
   double _currentMapZoom = 15.0;
   StreamSubscription? _mapEventSubscription;
+  String _coordinateFormat = 'DD';
 
   @override
   void initState() {
@@ -300,6 +300,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   Future<void> _loadMap() async {
     final service = MapDataService();
     _mapTitle = service.currentMapTitle ?? 'Mapa';
+    _coordinateFormat = GeoreferenceService().getCoordinateFormat(_mapTitle);
     final bytes = service.currentMapBytes;
 
     if (bytes != null && bytes.isNotEmpty) {
@@ -317,6 +318,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
             _pdfPageHeight = cachedHeight;
             _mapImageBytes = cachedPng;
             _pdfController = PdfController(document: PdfDocument.openData(bytes));
+            _coordinateFormat = GeoreferenceService().getCoordinateFormat(_mapTitle);
           });
           return;
         }
@@ -324,7 +326,6 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
         final document = await PdfDocument.openData(bytes);
         final page = await document.getPage(1);
 
-        Rect? cropRect;
         double renderWidth = page.width * 2;
         double renderHeight = page.height * 2;
         
@@ -348,12 +349,13 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
           _pdfPageHeight = finalHeight;
           _mapImageBytes = image.bytes;
           _pdfController = PdfController(document: Future.value(document));
+          _coordinateFormat = GeoreferenceService().getCoordinateFormat(_mapTitle);
         });
       } catch (e) {
-        setState(() => _errorMessage = 'Error al abrir el PDF: $e');
+        debugPrint('Error al abrir el PDF: $e');
       }
     } else {
-      setState(() => _errorMessage = 'El archivo no contiene datos válidos.');
+      debugPrint('El archivo no contiene datos válidos.');
     }
   }
 
@@ -648,32 +650,40 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                     const Icon(Icons.straighten, color: DesignSystem.primary),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1F1F1F),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              centerLatLon != null
-                                  ? '${centerLatLon!['lat']!.toStringAsFixed(6)}, ${centerLatLon!['lon']!.toStringAsFixed(6)}${GeoreferenceService().debugInfo.isNotEmpty ? " | " + GeoreferenceService().debugInfo : ""}'
-                                  : (GeoreferenceService().hasCalibrationFor(
-                                          _mapTitle,
-                                        )
-                                        ? 'Calculando... ${GeoreferenceService().debugInfo}'
-                                        : 'NO REFERENCIADO'),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontFamily: 'monospace',
-                                fontWeight: FontWeight.bold,
+                      child: GestureDetector(
+                        onTap: () => _showCoordinateFormatSelector(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1F1F1F),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                centerLatLon != null
+                                    ? GeoreferenceService().formatCoordinates(
+                                        centerLatLon['lat']!,
+                                        centerLatLon['lon']!,
+                                        _coordinateFormat,
+                                      )
+                                    : (GeoreferenceService().hasCalibrationFor(
+                                             _mapTitle,
+                                           )
+                                           ? 'Calculando...'
+                                           : 'NO REFERENCIADO'),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -695,6 +705,110 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     );
   }
 
+
+  void _showCoordinateFormatSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      enableDrag: true,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                border: Border(
+                  top: BorderSide(color: Colors.white10, width: 1),
+                ),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle de arrastre
+                    Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white30,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Sistema de Coordenadas',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const Divider(color: Colors.white10),
+                    _buildBottomSheetItem(context, 'DD', 'Grados Decimales (DD)', setModalState),
+                    _buildBottomSheetItem(context, 'DM', 'Grados y Minutos (DM)', setModalState),
+                    _buildBottomSheetItem(context, 'DMS', 'Grados, Minutos y Segundos (DMS)', setModalState),
+                    _buildBottomSheetItem(context, 'UTM', 'UTM (WGS84)', setModalState),
+                    _buildBottomSheetItem(context, 'ON', 'Origen Nacional (EPSG:9377)', setModalState),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomSheetItem(BuildContext context, String value, String label, StateSetter setModalState) {
+    final bool isSelected = _coordinateFormat == value;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _coordinateFormat = value;
+          GeoreferenceService().setCoordinateFormat(_mapTitle, value);
+        });
+        setModalState(() {});
+        Navigator.pop(context);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? DesignSystem.primary : Colors.white70,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: DesignSystem.primary,
+                size: 20,
+              )
+            else
+              const Icon(
+                Icons.circle_outlined,
+                color: Colors.white24,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildCircularButton(IconData icon, {Color? color}) {
     return Container(
