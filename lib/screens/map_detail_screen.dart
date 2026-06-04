@@ -39,6 +39,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   double _currentMapZoom = 15.0;
   StreamSubscription? _mapEventSubscription;
   String _coordinateFormat = 'DD';
+  double _dragDistance = 0.0;
 
   @override
   void initState() {
@@ -651,7 +652,21 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => _showCoordinateFormatSelector(context),
+                        onVerticalDragStart: (_) {
+                          _dragDistance = 0.0;
+                        },
+                        onVerticalDragUpdate: (details) {
+                          _dragDistance += details.primaryDelta ?? 0.0;
+                          if (_dragDistance < -20) {
+                            _dragDistance = 0.0;
+                            _showCoordinateFormatSelector(context);
+                          }
+                        },
+                        onVerticalDragEnd: (details) {
+                          if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
+                            _showCoordinateFormatSelector(context);
+                          }
+                        },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                           decoration: BoxDecoration(

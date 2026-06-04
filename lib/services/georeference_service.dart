@@ -72,7 +72,7 @@ class GeoreferenceService {
   }
 
   final Map<String, MapCalibration> _dynamicCalibrations = {};
-  final Map<String, String> _coordinateFormats = {};
+  static final Map<String, String> _coordinateFormats = {};
   String debugInfo = "";
 
   void clearCache(String mapTitle) {
@@ -984,7 +984,7 @@ class GeoreferenceService {
     final d = val.floor();
     final minFloat = (val - d) * 60;
     final m = minFloat.floor();
-    final s = ((minFloat - m) * 60).toStringAsFixed(8);
+    final s = ((minFloat - m) * 60).toStringAsFixed(2);
     return "$d° $m' $s\" $dir";
   }
 
@@ -996,7 +996,7 @@ class GeoreferenceService {
     final dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
     val = val.abs();
     final d = val.floor();
-    final m = ((val - d) * 60).toStringAsFixed(8);
+    final m = ((val - d) * 60).toStringAsFixed(4);
     return "$d° $m' $dir";
   }
 
@@ -1020,7 +1020,7 @@ class GeoreferenceService {
       final projWgs84 = Projection.get('EPSG:4326') ?? Projection.WGS84;
       final point = projWgs84.transform(projUtm, Point(x: lon, y: lat));
       
-      return 'E: ${point.x.toStringAsFixed(8)}, N: ${point.y.toStringAsFixed(8)}';
+      return 'E: ${point.x.toStringAsFixed(3)}, N: ${point.y.toStringAsFixed(3)}';
     } catch (e) {
       return 'Error de cálculo';
     }
@@ -1032,7 +1032,7 @@ class GeoreferenceService {
       final projNational = Projection.get('EPSG:9377');
       if (projNational == null) return 'EPSG:9377 no cargada';
       final point = projWgs84.transform(projNational, Point(x: lon, y: lat));
-      return 'E: ${point.x.toStringAsFixed(8)}, N: ${point.y.toStringAsFixed(8)}';
+      return 'E: ${point.x.toStringAsFixed(3)}, N: ${point.y.toStringAsFixed(3)}';
     } catch (e) {
       return 'Error de cálculo';
     }
@@ -1050,7 +1050,7 @@ class GeoreferenceService {
         return formatOrigenNacional(lat, lon);
       case 'DD':
       default:
-        return '${lat.toStringAsFixed(8)}, ${lon.toStringAsFixed(8)}';
+        return '${lat.toStringAsFixed(7)}, ${lon.toStringAsFixed(7)}';
     }
   }
 }
