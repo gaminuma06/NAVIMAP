@@ -7,7 +7,6 @@ import '../widgets/sidebar_menu.dart';
 import '../widgets/map_list_item.dart';
 import '../widgets/layer_list_item.dart';
 import '../widgets/map_loading_item.dart';
-import '../widgets/object_list_item.dart';
 import 'add_map_overlay.dart';
 import '../services/map_data_service.dart';
 import '../services/layer_store.dart';
@@ -503,14 +502,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   return;
                 }
                 setState(() {
-                  layers.insert(0, {'title': name, 'objects': 1});
                   LayerStore.initializeLayer(name);
-                  // Añadir objeto de ejemplo inmediatamente para que el conteo sea correcto desde el exterior
-                  LayerStore.addObject(name, {
-                    'name': 'Punto de control 1',
-                    'type': GeoObjectType.point,
-                    'value': 'Lat: 4.6097, Lon: -74.0817',
-                  }, mapContext: null);
                 });
                 Navigator.pop(context);
               },
