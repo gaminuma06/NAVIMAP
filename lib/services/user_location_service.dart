@@ -48,7 +48,29 @@ class UserLocationService {
     }
   }
 
+  UserLocationData? _lastData;
+  UserLocationData? get lastData => _lastData;
+
+  void _emitLocation(UserLocationData data) {
+    _lastData = data;
+    if (!_locationController.isClosed) {
+      _locationController.add(data);
+    }
+  }
+
   void startTracking() async {
+    // Si ya estamos escuchando, emitir el último dato en la siguiente microtarea para evitar condiciones de carrera
+    if (_positionSubscription != null) {
+      if (_lastData != null) {
+        Future.microtask(() {
+          if (!_locationController.isClosed) {
+            _locationController.add(_lastData!);
+          }
+        });
+      }
+      return;
+    }
+
     final hasPermission = await checkPermissions();
 
     if (!hasPermission) {
@@ -67,7 +89,7 @@ class UserLocationService {
     try {
       final lastPos = await Geolocator.getLastKnownPosition();
       if (lastPos != null) {
-        _locationController.add(
+        _emitLocation(
           UserLocationData(
             latitude: lastPos.latitude,
             longitude: lastPos.longitude,
@@ -86,7 +108,7 @@ class UserLocationService {
             distanceFilter: 1,
           ),
         ).listen((Position position) {
-          _locationController.add(
+          _emitLocation(
             UserLocationData(
               latitude: position.latitude,
               longitude: position.longitude,
@@ -98,7 +120,7 @@ class UserLocationService {
   }
 
   void simulateLocation(double lat, double lon, {double? heading}) {
-    _locationController.add(
+    _emitLocation(
       UserLocationData(
         latitude: lat,
         longitude: lon,
@@ -111,5 +133,7 @@ class UserLocationService {
   void stopTracking() {
     _positionSubscription?.cancel();
     _compassSubscription?.cancel();
+    _positionSubscription = null;
+    _compassSubscription = null;
   }
 }

@@ -17,6 +17,7 @@ import 'dart:async';
 
 class MapStore {
   static Map<String, Uint8List> bytesCache = {};
+  static final List<Map<String, dynamic>> mockMaps = [];
 }
 
 class LibraryScreen extends StatefulWidget {
@@ -32,7 +33,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  final List<Map<String, dynamic>> _mockMaps = [];
+  List<Map<String, dynamic>> get _mockMaps => MapStore.mockMaps;
   final List<String> _loadingMaps =
       []; // Nombres de los mapas que se están procesando
 
@@ -70,6 +71,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void initState() {
     super.initState();
     _preloadFonts();
+    _lastLocation = UserLocationService().lastData;
+    _recalculateMapStatuses();
     _locationSubscription = UserLocationService().locationStream.listen((
       location,
     ) {

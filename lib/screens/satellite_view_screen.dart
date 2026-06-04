@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
+import 'dart:async';
+import '../services/user_location_service.dart';
 import '../theme/design_system.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/user_location_marker.dart';
@@ -16,38 +17,72 @@ class SatelliteViewScreen extends StatefulWidget {
 
 class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   final MapController _mapController = MapController();
-  LatLng _currentLocation = const LatLng(0, 0);
-  double _heading = 0.0;
-  bool _isDrawing = false;
-  bool _initialLocationSet = false;
-  List<LatLng> _drawPoints = [];
+
+  static LatLng? _lastLocation;
+  static double _lastZoom = 13.0;
+  static double _lastHeading = 0.0;
+  static final List<LatLng> _staticDrawPoints = [];
+  static bool _staticIsDrawing = false;
+
+  late LatLng _currentLocation;
+  late double _heading;
+  late bool _isDrawing;
+  late bool _initialLocationSet;
+  late List<LatLng> _drawPoints;
+
+  StreamSubscription<UserLocationData>? _locationSubscription;
 
   @override
   void initState() {
     super.initState();
-    _checkLocationPermission();
+    final lastLoc = UserLocationService().lastData;
+    if (lastLoc != null) {
+      _currentLocation = LatLng(lastLoc.latitude, lastLoc.longitude);
+      _heading = lastLoc.heading ?? 0.0;
+      _lastLocation = _currentLocation;
+      _lastHeading = _heading;
+    } else {
+      _currentLocation = _lastLocation ?? const LatLng(8.623083, -73.732583);
+      _heading = _lastHeading;
+    }
+    _isDrawing = _staticIsDrawing;
+    _initialLocationSet = _lastLocation != null;
+    _drawPoints = _staticDrawPoints;
+    _initLocationTracking();
   }
 
-  Future<void> _checkLocationPermission() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    super.dispose();
+  }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
-    }
+  void _safeMove(LatLng center, double zoom) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        _mapController.move(center, zoom);
+      } catch (_) {}
+    });
+  }
 
-    Geolocator.getPositionStream().listen((Position position) {
+  void _initLocationTracking() {
+    UserLocationService().startTracking();
+    _locationSubscription = UserLocationService().locationStream.listen((data) {
       if (!mounted) return;
       setState(() {
-        _currentLocation = LatLng(position.latitude, position.longitude);
-        _heading = position.heading;
+        _currentLocation = LatLng(data.latitude, data.longitude);
+        if (data.heading != null) {
+          _heading = data.heading!;
+          _lastHeading = _heading;
+        }
+
+        _lastLocation = _currentLocation;
 
         // Auto centrar como Google Maps la primera vez que se tiene señal GPS
         if (!_initialLocationSet) {
           _initialLocationSet = true;
-          _mapController.move(_currentLocation, 17.0);
+          _lastZoom = 17.0;
+          _safeMove(_currentLocation, 17.0);
         }
       });
     });
@@ -62,12 +97,16 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: const LatLng(0, 0),
-              initialZoom: 13.0,
+              initialCenter: _lastLocation ?? const LatLng(8.623083, -73.732583),
+              initialZoom: _lastZoom,
               onTap: (tapPosition, point) {
                 if (_isDrawing) {
                   setState(() => _drawPoints.add(point));
                 }
+              },
+              onPositionChanged: (position, hasGesture) {
+                _lastLocation = position.center;
+                _lastZoom = position.zoom;
               },
             ),
             children: [
@@ -77,17 +116,18 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                 userAgentPackageName: 'com.navimap.app',
                 tileProvider: CancellableNetworkTileProvider(silenceExceptions: true),
               ),
-              if (_currentLocation.latitude != 0)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _currentLocation,
-                      width: 60,
-                      height: 60,
-                      child: UserLocationMarker(heading: _heading),
-                    ),
-                  ],
-                ),
+              MarkerLayer(
+                markers: _currentLocation.latitude != 0
+                    ? [
+                        Marker(
+                          point: _currentLocation,
+                          width: 60,
+                          height: 60,
+                          child: UserLocationMarker(heading: _heading),
+                        ),
+                      ]
+                    : [],
+              ),
               PolylineLayer(
                 polylines: [
                   Polyline(
@@ -135,7 +175,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                   }),
                   const SizedBox(height: 20),
                   _buildMapAction(Icons.polyline_outlined, 'DRAW', () {
-                    setState(() => _isDrawing = !_isDrawing);
+                    setState(() {
+                      _isDrawing = !_isDrawing;
+                      _staticIsDrawing = _isDrawing;
+                    });
                   }, active: _isDrawing),
                   const SizedBox(height: 20),
                   _buildMapAction(Icons.my_location, 'RECENTER', () {

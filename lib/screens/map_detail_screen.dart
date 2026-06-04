@@ -29,6 +29,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   String? _errorMessage;
 
   UserLocationData? _currentUserLocation;
+  StreamSubscription<UserLocationData>? _locationSubscription;
   double _pdfPageWidth = 1000;
   double _pdfPageHeight = 1000;
   final GlobalKey _mapAreaKey = GlobalKey();
@@ -52,8 +53,11 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   }
 
   void _initLocationTracking() {
+    _currentUserLocation = UserLocationService().lastData;
+    _updateMarkerPosition();
+
     UserLocationService().startTracking();
-    UserLocationService().locationStream.listen((data) {
+    _locationSubscription = UserLocationService().locationStream.listen((data) {
       if (mounted) {
         setState(() {
           _currentUserLocation = data;
@@ -178,7 +182,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   @override
   void dispose() {
     _mapEventSubscription?.cancel();
-    UserLocationService().stopTracking();
+    _locationSubscription?.cancel();
     _pdfController?.dispose();
     super.dispose();
   }
@@ -289,6 +293,15 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                           });
                         },
                         onMapReady: () {
+                          // Forzar un frame de renderizado adicional poco después de que el mapa esté listo.
+                          // Esto asegura que el marcador GPS se dibuje en su posición correcta una vez que el
+                          // motor de FlutterMap ha completado su primer pase de layout.
+                          Future.delayed(const Duration(milliseconds: 150), () {
+                            if (mounted) {
+                              setState(() {});
+                            }
+                          });
+
                           if (!_dynamicMinZooms.containsKey(_mapTitle)) {
                             // Esperar a que CameraFit.bounds se aplique realmente (toma 1 frame)
                             Future.delayed(const Duration(milliseconds: 100), () {
@@ -327,22 +340,23 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                             ),
                           ],
                         ),
-                        if (_currentUserLocation != null &&
-                            GeoreferenceService().isUserInsideMap(
-                              _mapTitle,
-                              _currentUserLocation!.latitude,
-                              _currentUserLocation!.longitude,
-                            ))
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                point: latlong2.LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
-                                width: 60,
-                                height: 60,
-                                child: UserLocationMarker(heading: _currentUserLocation?.heading ?? 0),
-                              ),
-                            ],
-                          ),
+                        MarkerLayer(
+                          markers: (_currentUserLocation != null &&
+                                  GeoreferenceService().isUserInsideMap(
+                                    _mapTitle,
+                                    _currentUserLocation!.latitude,
+                                    _currentUserLocation!.longitude,
+                                  ))
+                              ? [
+                                  Marker(
+                                    point: latlong2.LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
+                                    width: 60,
+                                    height: 60,
+                                    child: UserLocationMarker(heading: _currentUserLocation?.heading ?? 0),
+                                  ),
+                                ]
+                              : [],
+                        ),
                       ],
                     );
                   }
