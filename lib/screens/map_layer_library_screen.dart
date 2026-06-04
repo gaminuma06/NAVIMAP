@@ -18,8 +18,20 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
   bool _isSearching = false;
   String _searchQuery = '';
 
-  List<Map<String, dynamic>> get _currentLayers =>
-      LayerStore.getLayers(widget.mapTitle);
+  List<Map<String, dynamic>> get _currentLayers {
+    final list = List<Map<String, dynamic>>.from(LayerStore.getLayers(widget.mapTitle));
+    final activeLayer = LayerStore.activeMapLayer[widget.mapTitle];
+    if (activeLayer != null) {
+      list.sort((a, b) {
+        final aActive = a['title'] == activeLayer;
+        final bActive = b['title'] == activeLayer;
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+        return 0;
+      });
+    }
+    return list;
+  }
 
   List<Map<String, dynamic>> get _filteredLayers {
     final allLayers = _currentLayers;

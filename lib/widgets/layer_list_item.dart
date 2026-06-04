@@ -33,7 +33,12 @@ class LayerListItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: DesignSystem.surfaceContainer,
           borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
-          border: Border.all(color: DesignSystem.outline.withOpacity(0.5)),
+          border: Border.all(
+            color: (isActive == true)
+                ? DesignSystem.primary
+                : DesignSystem.outline.withOpacity(0.5),
+            width: (isActive == true) ? 1.5 : 1.0,
+          ),
         ),
         child: Row(
           children: [
@@ -77,11 +82,22 @@ class LayerListItem extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$objectCount objetos',
-                    style: DesignSystem.bodySm.copyWith(color: Colors.white54),
-                  ),
+                  if (isActive == null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '$objectCount objetos',
+                      style: DesignSystem.bodySm.copyWith(color: Colors.white54),
+                    ),
+                  ] else if (isActive == true) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Capa activa',
+                      style: DesignSystem.bodySm.copyWith(
+                        color: DesignSystem.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -97,8 +113,27 @@ class LayerListItem extends StatelessWidget {
                 if (value == 'rename') onRename?.call();
                 if (value == 'export') onExport?.call();
                 if (value == 'delete') onDelete?.call();
+                if (value == 'activate') onToggleActive?.call();
               },
               itemBuilder: (BuildContext context) => [
+                if (isActive == false)
+                  const PopupMenuItem<String>(
+                    value: 'activate',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.radio_button_checked,
+                          color: DesignSystem.primary,
+                          size: 20,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Activar capa',
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
                 const PopupMenuItem<String>(
                   value: 'rename',
                   child: Row(
