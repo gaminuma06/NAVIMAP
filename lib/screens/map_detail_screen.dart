@@ -755,6 +755,17 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     });
   }
 
+  String _getObjectSubtitle(Map<String, dynamic> pin) {
+    if (pin['type'] == GeoObjectType.point) {
+      final lat = pin['latitude'] as double?;
+      final lon = pin['longitude'] as double?;
+      if (lat != null && lon != null) {
+        return GeoreferenceService().formatCoordinates(lat, lon, _coordinateFormat);
+      }
+    }
+    return pin['value'] as String? ?? '';
+  }
+
   List<Marker> _getPinMarkers() {
     final List<Marker> markers = [];
     final activeLayer = LayerStore.activeMapLayer[_mapTitle];
@@ -812,25 +823,28 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
         markers.add(
           Marker(
             point: anchorPoint,
-            width: 220,
-            height: (42.0 * _selectedPins.length) + 12.0,
+            width: 230,
+            height: (56.0 * _selectedPins.length) + 8.0,
             alignment: Alignment.bottomCenter,
             child: Container(
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
-                border: Border.all(color: DesignSystem.primary, width: 1.5),
+                color: const Color(0xFF141414),
+                borderRadius: BorderRadius.circular(10.0),
+                border: Border.all(
+                  color: DesignSystem.primary.withValues(alpha: 0.85),
+                  width: 1.2,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+                    color: Colors.black.withValues(alpha: 0.6),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(DesignSystem.radiusSm - 1.5),
+                borderRadius: BorderRadius.circular(8.8),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: _selectedPins.map((pin) {
@@ -844,21 +858,38 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                             onTap: () => _openPinAttributes(pin),
                             child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   const Icon(Icons.edit, color: DesignSystem.primary, size: 14),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: Text(
-                                      pin['name'],
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          pin['name'],
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _getObjectSubtitle(pin),
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 10,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
