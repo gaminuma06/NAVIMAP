@@ -49,6 +49,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
   bool _isMeasuringMode = false;
   final List<latlong2.LatLng> _measuringPoints = [];
+  latlong2.LatLng? _selectedLineTapPoint;
 
   latlong2.LatLng _getSafeCenter() {
     if (_currentMapCenter != null) return _currentMapCenter!;
@@ -92,6 +93,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       _isMeasuringMode = !_isMeasuringMode;
       _measuringPoints.clear();
       _selectedPins.clear();
+      _selectedLineTapPoint = null;
     });
   }
 
@@ -214,6 +216,8 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                       'latitude': p.latitude,
                       'longitude': p.longitude,
                     }).toList(),
+                    'unit': 'm',
+                    'color': 0xFFFFA726,
                   },
                   mapContext: _mapTitle,
                 );
@@ -384,6 +388,99 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     });
   }
 
+  void _handleMapTap(latlong2.LatLng point) {
+    if (_isMeasuringMode) return;
+
+    final activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null) {
+      setState(() {
+        _selectedPins.clear();
+        _selectedLineTapPoint = null;
+      });
+      return;
+    }
+
+    final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
+    final List<Map<String, dynamic>> closeObjects = [];
+    latlong2.LatLng? lineTapPoint;
+
+    try {
+      final tapPos = _mapController.camera.project(point);
+
+      for (var obj in objects) {
+        if (obj['type'] == GeoObjectType.point &&
+            obj['latitude'] != null &&
+            obj['longitude'] != null) {
+          final lat = obj['latitude'] as double;
+          final lon = obj['longitude'] as double;
+          final pos = _mapController.camera.project(latlong2.LatLng(lat, lon));
+          
+          final dx = tapPos.x - pos.x;
+          final dy = tapPos.y - pos.y;
+          final dist = math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 40.0) {
+            closeObjects.add(obj);
+          }
+        } else if (obj['type'] == GeoObjectType.line && obj['points'] != null) {
+          final pts = obj['points'] as List;
+          for (int i = 0; i < pts.length - 1; i++) {
+            final pt1 = pts[i];
+            final pt2 = pts[i + 1];
+            if (pt1['latitude'] == null || pt1['longitude'] == null ||
+                pt2['latitude'] == null || pt2['longitude'] == null) continue;
+            
+            final p1 = _mapController.camera.project(latlong2.LatLng(
+              pt1['latitude'] as double,
+              pt1['longitude'] as double,
+            ));
+            final p2 = _mapController.camera.project(latlong2.LatLng(
+              pt2['latitude'] as double,
+              pt2['longitude'] as double,
+            ));
+
+            final double dx = p2.x - p1.x;
+            final double dy = p2.y - p1.y;
+            final double lenSq = dx * dx + dy * dy;
+            
+            double dist;
+            if (lenSq == 0) {
+              final double sx = tapPos.x - p1.x;
+              final double sy = tapPos.y - p1.y;
+              dist = math.sqrt(sx * sx + sy * sy);
+            } else {
+              final double t = ((tapPos.x - p1.x) * dx + (tapPos.y - p1.y) * dy) / lenSq;
+              final double tClamped = t.clamp(0.0, 1.0);
+              final double cx = p1.x + tClamped * dx;
+              final double cy = p1.y + tClamped * dy;
+              final double sx = tapPos.x - cx;
+              final double sy = tapPos.y - cy;
+              dist = math.sqrt(sx * sx + sy * sy);
+            }
+
+            if (dist < 25.0) {
+              if (!closeObjects.contains(obj)) {
+                closeObjects.add(obj);
+                lineTapPoint = point;
+              }
+              break;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in _handleMapTap: $e');
+    }
+
+    setState(() {
+      _selectedPins.clear();
+      _selectedPins.addAll(closeObjects);
+      _selectedLineTapPoint = (closeObjects.isNotEmpty && closeObjects.first['type'] == GeoObjectType.line)
+          ? lineTapPoint
+          : null;
+    });
+  }
+
   List<Marker> _getPinMarkers() {
     final List<Marker> markers = [];
     final activeLayer = LayerStore.activeMapLayer[_mapTitle];
@@ -431,80 +528,85 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
     if (_selectedPins.isNotEmpty) {
       final firstSelected = _selectedPins.first;
-      final lat = firstSelected['latitude'] as double;
-      final lon = firstSelected['longitude'] as double;
+      final lat = firstSelected['latitude'] as double?;
+      final lon = firstSelected['longitude'] as double?;
+      final anchorPoint = (lat != null && lon != null)
+          ? latlong2.LatLng(lat, lon)
+          : _selectedLineTapPoint;
 
-      markers.add(
-        Marker(
-          point: latlong2.LatLng(lat, lon),
-          width: 220,
-          height: (42.0 * _selectedPins.length) + 12.0,
-          alignment: Alignment.bottomCenter,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
-              border: Border.all(color: DesignSystem.primary, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(DesignSystem.radiusSm - 1.5),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: _selectedPins.map((pin) {
-                  final isLast = pin == _selectedPins.last;
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _openPinAttributes(pin),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.edit, color: DesignSystem.primary, size: 14),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    pin['name'],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
+      if (anchorPoint != null) {
+        markers.add(
+          Marker(
+            point: anchorPoint,
+            width: 220,
+            height: (42.0 * _selectedPins.length) + 12.0,
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                border: Border.all(color: DesignSystem.primary, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(DesignSystem.radiusSm - 1.5),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _selectedPins.map((pin) {
+                    final isLast = pin == _selectedPins.last;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _openPinAttributes(pin),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.edit, color: DesignSystem.primary, size: 14),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      pin['name'],
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      if (!isLast)
-                        const Divider(
-                          color: Colors.white10,
-                          height: 1,
-                          thickness: 1,
-                        ),
-                    ],
-                  );
-                }).toList(),
+                        if (!isLast)
+                          const Divider(
+                            color: Colors.white10,
+                            height: 1,
+                            thickness: 1,
+                          ),
+                      ],
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     // Si estamos en modo de medición, agregar marcadores para los vértices creados
@@ -550,7 +652,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
             }
           }
           if (latLngList.isNotEmpty) {
-            final colorValue = obj['color'] as int? ?? 0xFFFF9100;
+            final colorValue = obj['color'] as int? ?? 0xFFFFA726;
             polylines.add(
               Polyline(
                 points: latLngList,
@@ -896,9 +998,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                           });
                         },
                         onTap: (tapPosition, point) {
-                          setState(() {
-                            _selectedPins.clear();
-                          });
+                          _handleMapTap(point);
                         },
                         onMapReady: () {
                           // Forzar un frame de renderizado adicional poco después de que el mapa esté listo.

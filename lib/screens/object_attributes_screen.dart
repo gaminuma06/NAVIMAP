@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import '../theme/design_system.dart';
 import '../services/layer_store.dart';
 import '../services/georeference_service.dart';
@@ -30,13 +31,14 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
   late String _selectedFormat;
   late double _currentLat;
   late double _currentLon;
+  late String _selectedUnit;
 
   final List<int> _colorOptions = [
     0xFFFF1744, // Rojo
     0xFF2979FF, // Azul
     0xFF00E676, // Verde
     0xFFFFEA00, // Amarillo
-    0xFFFF9100, // Naranja
+    0xFFFFA726, // Naranja Pálido (Avenza)
     0xFFD500F9, // Morado
   ];
 
@@ -52,9 +54,10 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
     _latController = TextEditingController();
     _lonController = TextEditingController();
     
-    _selectedColor = widget.object['color'] as int? ?? 0xFFFF1744;
+    _selectedColor = widget.object['color'] as int? ?? (isLine ? 0xFFFFA726 : 0xFFFF1744);
     _createdAt = widget.object['createdAt'] as String? ?? DateTime.now().toIso8601String();
     _selectedFormat = widget.object['coordinateFormat'] as String? ?? 'DD';
+    _selectedUnit = widget.object['unit'] as String? ?? 'm';
     
     if (!isLine) {
       _updateTextFields();
@@ -95,11 +98,16 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
     final newName = _nameController.text.trim();
 
     if (widget.object['type'] == GeoObjectType.line) {
+      final points = widget.object['points'] as List? ?? [];
+      final double totalLength = _calculateGeodesicLength(points);
+      final formattedValue = _formatLengthWithUnit(totalLength, _selectedUnit);
+
       final updatedObject = {
         'name': newName,
         'type': widget.object['type'],
-        'value': widget.object['value'],
+        'value': formattedValue,
         'points': widget.object['points'],
+        'unit': _selectedUnit,
         'color': _selectedColor,
         'createdAt': _createdAt,
       };
@@ -215,19 +223,54 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                   ),
                 ),
                 const SizedBox(height: DesignSystem.spacingMd),
-                TextFormField(
-                  initialValue: widget.object['value'],
-                  style: const TextStyle(color: Colors.white70),
+                Builder(
+                  builder: (context) {
+                    final points = widget.object['points'] as List? ?? [];
+                    final meters = _calculateGeodesicLength(points);
+                    final lengthStr = _formatLengthWithUnit(meters, _selectedUnit);
+                    return TextFormField(
+                      key: ValueKey(lengthStr),
+                      initialValue: lengthStr,
+                      style: const TextStyle(color: Colors.white70),
+                      decoration: InputDecoration(
+                        labelText: 'Longitud de la línea',
+                        labelStyle: const TextStyle(color: Colors.white38),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.02),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                        ),
+                      ),
+                      readOnly: true,
+                    );
+                  }
+                ),
+                const SizedBox(height: DesignSystem.spacingMd),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedUnit,
+                  dropdownColor: const Color(0xFF1E1E1E),
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Longitud de la línea',
+                    labelText: 'Unidad de medida',
                     labelStyle: const TextStyle(color: Colors.white38),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.02),
+                    fillColor: Colors.white.withOpacity(0.05),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                     ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: DesignSystem.primary),
+                      borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                    ),
                   ),
-                  readOnly: true,
+                  items: _buildDropdownItems(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedUnit = val;
+                      });
+                    }
+                  },
                 ),
               ] else ...[
                 const Text(
@@ -528,6 +571,128 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
       'lat': formatted,
       'lon': '',
     };
+  }
+
+  double _calculateGeodesicLength(List<dynamic> points) {
+    double total = 0.0;
+    const double r = 6371000; // Earth radius in meters
+    for (int i = 0; i < points.length - 1; i++) {
+      final p1 = points[i];
+      final p2 = points[i + 1];
+      if (p1['latitude'] == null || p1['longitude'] == null ||
+          p2['latitude'] == null || p2['longitude'] == null) continue;
+      final lat1 = (p1['latitude'] as num).toDouble() * math.pi / 180;
+      final lon1 = (p1['longitude'] as num).toDouble() * math.pi / 180;
+      final lat2 = (p2['latitude'] as num).toDouble() * math.pi / 180;
+      final lon2 = (p2['longitude'] as num).toDouble() * math.pi / 180;
+
+      final dLat = lat2 - lat1;
+      final dLon = lon2 - lon1;
+
+      final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+          math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2) * math.sin(dLon / 2);
+      final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+      total += r * c;
+    }
+    return total;
+  }
+
+  String _formatLengthWithUnit(double meters, String unit) {
+    switch (unit) {
+      case 'km':
+        return '${(meters / 1000.0).toStringAsFixed(3)} km';
+      case 'cm':
+        return '${(meters * 100.0).toStringAsFixed(1)} cm';
+      case 'mm':
+        return '${(meters * 1000.0).toStringAsFixed(0)} mm';
+      case 'in':
+        return '${(meters * 39.3701).toStringAsFixed(1)} in';
+      case 'ft':
+        return '${(meters * 3.28084).toStringAsFixed(2)} ft';
+      case 'yd':
+        return '${(meters * 1.09361).toStringAsFixed(2)} yd';
+      case 'mi':
+        return '${(meters * 0.000621371).toStringAsFixed(3)} mi';
+      case 'NM':
+        return '${(meters * 0.000539957).toStringAsFixed(3)} NM';
+      case 'm':
+      default:
+        return '${meters.toStringAsFixed(2)} m';
+    }
+  }
+
+  List<DropdownMenuItem<String>> _buildDropdownItems() {
+    final List<DropdownMenuItem<String>> items = [];
+    
+    // Group 1: Sistema Métrico
+    items.add(const DropdownMenuItem<String>(
+      value: '__metric_header__',
+      enabled: false,
+      child: Text(
+        'SISTEMA MÉTRICO',
+        style: TextStyle(
+          color: DesignSystem.primary,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+        ),
+      ),
+    ));
+    items.add(const DropdownMenuItem<String>(value: 'm', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Metros (m)'))));
+    items.add(const DropdownMenuItem<String>(value: 'km', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Kilómetros (km)'))));
+    items.add(const DropdownMenuItem<String>(value: 'cm', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Centímetros (cm)'))));
+    items.add(const DropdownMenuItem<String>(value: 'mm', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Milímetros (mm)'))));
+
+    // Divider
+    items.add(const DropdownMenuItem<String>(
+      value: '__divider_1__',
+      enabled: false,
+      child: Divider(color: Colors.white12, height: 1),
+    ));
+
+    // Group 2: Sistema Imperial
+    items.add(const DropdownMenuItem<String>(
+      value: '__imperial_header__',
+      enabled: false,
+      child: Text(
+        'SISTEMA ANGLOSAJÓN (IMPERIAL)',
+        style: TextStyle(
+          color: DesignSystem.primary,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+        ),
+      ),
+    ));
+    items.add(const DropdownMenuItem<String>(value: 'ft', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Pies (ft)'))));
+    items.add(const DropdownMenuItem<String>(value: 'yd', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Yardas (yd)'))));
+    items.add(const DropdownMenuItem<String>(value: 'in', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Pulgadas (in)'))));
+    items.add(const DropdownMenuItem<String>(value: 'mi', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Millas (mi)'))));
+
+    // Divider
+    items.add(const DropdownMenuItem<String>(
+      value: '__divider_2__',
+      enabled: false,
+      child: Divider(color: Colors.white12, height: 1),
+    ));
+
+    // Group 3: Náutico
+    items.add(const DropdownMenuItem<String>(
+      value: '__nautical_header__',
+      enabled: false,
+      child: Text(
+        'OTRAS UNIDADES',
+        style: TextStyle(
+          color: DesignSystem.primary,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+        ),
+      ),
+    ));
+    items.add(const DropdownMenuItem<String>(value: 'NM', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Millas Náuticas (NM)'))));
+
+    return items;
   }
 
   void _updateTextFields() {
