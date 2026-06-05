@@ -48,18 +48,19 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
     _nameController = TextEditingController(text: widget.object['name']);
     
     final bool isLine = widget.object['type'] == GeoObjectType.line;
+    final bool isPolygon = widget.object['type'] == GeoObjectType.polygon;
     _currentLat = widget.object['latitude'] as double? ?? 0.0;
     _currentLon = widget.object['longitude'] as double? ?? 0.0;
     
     _latController = TextEditingController();
     _lonController = TextEditingController();
     
-    _selectedColor = widget.object['color'] as int? ?? (isLine ? 0xFFFFA726 : 0xFFFF1744);
+    _selectedColor = widget.object['color'] as int? ?? ((isLine || isPolygon) ? 0xFFFFA726 : 0xFFFF1744);
     _createdAt = widget.object['createdAt'] as String? ?? DateTime.now().toIso8601String();
     _selectedFormat = widget.object['coordinateFormat'] as String? ?? 'DD';
-    _selectedUnit = widget.object['unit'] as String? ?? 'm';
+    _selectedUnit = widget.object['unit'] as String? ?? (isPolygon ? 'm²' : 'm');
     
-    if (!isLine) {
+    if (!isLine && !isPolygon) {
       _updateTextFields();
       _latController.addListener(_onCoordsChanged);
       _lonController.addListener(_onCoordsChanged);
@@ -68,7 +69,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
 
   @override
   void dispose() {
-    if (widget.object['type'] != GeoObjectType.line) {
+    if (widget.object['type'] != GeoObjectType.line && widget.object['type'] != GeoObjectType.polygon) {
       _latController.removeListener(_onCoordsChanged);
       _lonController.removeListener(_onCoordsChanged);
     }
@@ -101,6 +102,30 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
       final points = widget.object['points'] as List? ?? [];
       final double totalLength = _calculateGeodesicLength(points);
       final formattedValue = _formatLengthWithUnit(totalLength, _selectedUnit);
+
+      final updatedObject = {
+        'name': newName,
+        'type': widget.object['type'],
+        'value': formattedValue,
+        'points': widget.object['points'],
+        'unit': _selectedUnit,
+        'color': _selectedColor,
+        'createdAt': _createdAt,
+      };
+
+      LayerStore.updateObject(
+        widget.layerName,
+        widget.object,
+        updatedObject,
+        mapContext: widget.mapContext,
+      );
+
+    }
+
+    if (widget.object['type'] == GeoObjectType.polygon) {
+      final points = widget.object['points'] as List? ?? [];
+      final double totalArea = _calculatePolygonArea(points);
+      final formattedValue = _formatAreaWithUnit(totalArea, _selectedUnit);
 
       final updatedObject = {
         'name': newName,
@@ -264,6 +289,65 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                     ),
                   ),
                   items: _buildDropdownItems(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedUnit = val;
+                      });
+                    }
+                  },
+                ),
+              ] else if (widget.object['type'] == GeoObjectType.polygon) ...[
+                const Text(
+                  'INFORMACIÓN DE MEDIDA',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: DesignSystem.spacingMd),
+                Builder(
+                  builder: (context) {
+                    final points = widget.object['points'] as List? ?? [];
+                    final areaM2 = _calculatePolygonArea(points);
+                    final areaStr = _formatAreaWithUnit(areaM2, _selectedUnit);
+                    return TextFormField(
+                      key: ValueKey(areaStr),
+                      initialValue: areaStr,
+                      style: const TextStyle(color: Colors.white70),
+                      decoration: InputDecoration(
+                        labelText: 'Área del polígono',
+                        labelStyle: const TextStyle(color: Colors.white38),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.02),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                        ),
+                      ),
+                      readOnly: true,
+                    );
+                  }
+                ),
+                const SizedBox(height: DesignSystem.spacingMd),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedUnit,
+                  dropdownColor: const Color(0xFF1E1E1E),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Unidad de medida',
+                    labelStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: DesignSystem.primary),
+                      borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                    ),
+                  ),
+                  items: _buildAreaDropdownItems(),
                   onChanged: (val) {
                     if (val != null) {
                       setState(() {
@@ -695,8 +779,113 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
     return items;
   }
 
+  double _calculatePolygonArea(List<dynamic> points) {
+    if (points.length < 3) return 0.0;
+    
+    double sumLat = 0.0;
+    for (var pt in points) {
+      final lat = (pt['latitude'] as num).toDouble();
+      sumLat += lat;
+    }
+    final double avgLat = (sumLat / points.length) * math.pi / 180.0;
+    
+    const double r = 6371000.0;
+    final List<math.Point<double>> projectedPoints = [];
+    
+    for (var pt in points) {
+      final lat = (pt['latitude'] as num).toDouble();
+      final lon = (pt['longitude'] as num).toDouble();
+      
+      final x = r * (lon * math.pi / 180.0) * math.cos(avgLat);
+      final y = r * (lat * math.pi / 180.0);
+      projectedPoints.add(math.Point(x, y));
+    }
+    
+    double area = 0.0;
+    int n = projectedPoints.length;
+    for (int i = 0; i < n; i++) {
+      final j = (i + 1) % n;
+      area += projectedPoints[i].x * projectedPoints[j].y;
+      area -= projectedPoints[j].x * projectedPoints[i].y;
+    }
+    return (area.abs() / 2.0);
+  }
+
+  String _formatAreaWithUnit(double metersSq, String unit) {
+    switch (unit) {
+      case 'km²':
+        return '${(metersSq / 1000000.0).toStringAsFixed(4)} km²';
+      case 'ha':
+        return '${(metersSq / 10000.0).toStringAsFixed(3)} ha';
+      case 'ac':
+        return '${(metersSq / 4046.8564).toStringAsFixed(3)} ac';
+      case 'ft²':
+        return '${(metersSq * 10.7639).toStringAsFixed(2)} ft²';
+      case 'yd²':
+        return '${(metersSq * 1.19599).toStringAsFixed(2)} yd²';
+      case 'mi²':
+        return '${(metersSq / 2589988.11).toStringAsFixed(5)} mi²';
+      case 'cm²':
+        return '${(metersSq * 10000.0).toStringAsFixed(0)} cm²';
+      case 'm²':
+      default:
+        return '${metersSq.toStringAsFixed(2)} m²';
+    }
+  }
+
+  List<DropdownMenuItem<String>> _buildAreaDropdownItems() {
+    final List<DropdownMenuItem<String>> items = [];
+    
+    // Group 1: Sistema Métrico
+    items.add(const DropdownMenuItem<String>(
+      value: '__metric_area_header__',
+      enabled: false,
+      child: Text(
+        'SISTEMA MÉTRICO',
+        style: TextStyle(
+          color: DesignSystem.primary,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+        ),
+      ),
+    ));
+    items.add(const DropdownMenuItem<String>(value: 'm²', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Metros cuadrados (m²)'))));
+    items.add(const DropdownMenuItem<String>(value: 'km²', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Kilómetros cuadrados (km²)'))));
+    items.add(const DropdownMenuItem<String>(value: 'ha', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Hectáreas (ha)'))));
+    items.add(const DropdownMenuItem<String>(value: 'cm²', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Centímetros cuadrados (cm²)'))));
+
+    // Divider
+    items.add(const DropdownMenuItem<String>(
+      value: '__divider_area_1__',
+      enabled: false,
+      child: Divider(color: Colors.white12, height: 1),
+    ));
+
+    // Group 2: Sistema Imperial
+    items.add(const DropdownMenuItem<String>(
+      value: '__imperial_area_header__',
+      enabled: false,
+      child: Text(
+        'SISTEMA ANGLOSAJÓN (IMPERIAL)',
+        style: TextStyle(
+          color: DesignSystem.primary,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+        ),
+      ),
+    ));
+    items.add(const DropdownMenuItem<String>(value: 'ft²', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Pies cuadrados (ft²)'))));
+    items.add(const DropdownMenuItem<String>(value: 'yd²', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Yardas cuadradas (yd²)'))));
+    items.add(const DropdownMenuItem<String>(value: 'mi²', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Millas cuadradas (mi²)'))));
+    items.add(const DropdownMenuItem<String>(value: 'ac', child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Acres (ac)'))));
+
+    return items;
+  }
+
   void _updateTextFields() {
-    if (widget.object['type'] == GeoObjectType.line) return;
+    if (widget.object['type'] == GeoObjectType.line || widget.object['type'] == GeoObjectType.polygon) return;
     _latController.removeListener(_onCoordsChanged);
     _lonController.removeListener(_onCoordsChanged);
 

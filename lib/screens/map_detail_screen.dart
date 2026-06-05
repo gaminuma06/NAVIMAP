@@ -88,6 +88,79 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     }
   }
 
+  bool get _canClosePolygon {
+    if (!_isMeasuringMode || _measuringPoints.length < 3) return false;
+    try {
+      final firstPoint = _measuringPoints.first;
+      final currentCenter = _getSafeCenter();
+      
+      final p1 = _mapController.camera.project(firstPoint);
+      final p2 = _mapController.camera.project(currentCenter);
+      
+      final dx = p2.x - p1.x;
+      final dy = p2.y - p1.y;
+      final dist = math.sqrt(dx * dx + dy * dy);
+      
+      return dist < 35.0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  double _calculatePolygonArea(List<dynamic> points) {
+    if (points.length < 3) return 0.0;
+    
+    double sumLat = 0.0;
+    for (var pt in points) {
+      final lat = (pt['latitude'] as num).toDouble();
+      sumLat += lat;
+    }
+    final double avgLat = (sumLat / points.length) * math.pi / 180.0;
+    
+    const double r = 6371000.0;
+    final List<math.Point<double>> projectedPoints = [];
+    
+    for (var pt in points) {
+      final lat = (pt['latitude'] as num).toDouble();
+      final lon = (pt['longitude'] as num).toDouble();
+      
+      final x = r * (lon * math.pi / 180.0) * math.cos(avgLat);
+      final y = r * (lat * math.pi / 180.0);
+      projectedPoints.add(math.Point(x, y));
+    }
+    
+    double area = 0.0;
+    int n = projectedPoints.length;
+    for (int i = 0; i < n; i++) {
+      final j = (i + 1) % n;
+      area += projectedPoints[i].x * projectedPoints[j].y;
+      area -= projectedPoints[j].x * projectedPoints[i].y;
+    }
+    return (area.abs() / 2.0);
+  }
+
+  String _formatAreaWithUnit(double metersSq, String unit) {
+    switch (unit) {
+      case 'km²':
+        return '${(metersSq / 1000000.0).toStringAsFixed(4)} km²';
+      case 'ha':
+        return '${(metersSq / 10000.0).toStringAsFixed(3)} ha';
+      case 'ac':
+        return '${(metersSq / 4046.8564).toStringAsFixed(3)} ac';
+      case 'ft²':
+        return '${(metersSq * 10.7639).toStringAsFixed(2)} ft²';
+      case 'yd²':
+        return '${(metersSq * 1.19599).toStringAsFixed(2)} yd²';
+      case 'mi²':
+        return '${(metersSq / 2589988.11).toStringAsFixed(5)} mi²';
+      case 'cm²':
+        return '${(metersSq * 10000.0).toStringAsFixed(0)} cm²';
+      case 'm²':
+      default:
+        return '${metersSq.toStringAsFixed(2)} m²';
+    }
+  }
+
   void _toggleMeasuringMode() {
     setState(() {
       _isMeasuringMode = !_isMeasuringMode;
@@ -229,6 +302,141 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
               _showTopBanner(
                 'Línea "$lineName" guardada en "$activeLayer"',
+                const Color(0xFF388E3C),
+              );
+            },
+            child: const Text('GUARDAR'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _saveMeasuringPolygon() {
+    if (_measuringPoints.length < 3) return;
+
+    final List<latlong2.LatLng> finalPoints = List.from(_measuringPoints);
+    final double areaM2 = _calculatePolygonArea(finalPoints.map((p) => {
+      'latitude': p.latitude,
+      'longitude': p.longitude,
+    }).toList());
+    final formattedArea = _formatAreaWithUnit(areaM2, 'm²');
+
+    String? activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null) {
+      final existingLayers = LayerStore.getLayers(_mapTitle);
+      if (existingLayers.isNotEmpty) {
+        activeLayer = existingLayers.first['title'];
+        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      } else {
+        int i = 1;
+        String candidate = 'Capa $i';
+        while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+          i++;
+          candidate = 'Capa $i';
+        }
+        activeLayer = candidate;
+        LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
+        existingLayers.add({'title': activeLayer, 'objects': 0});
+        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      }
+    }
+
+    final objects = LayerStore.getObjects(activeLayer!, mapContext: _mapTitle);
+    final polygonsCount = objects.where((obj) => obj['type'] == GeoObjectType.polygon).length;
+    final defaultPolygonName = 'Polígono ${polygonsCount + 1}';
+
+    final controller = TextEditingController(text: defaultPolygonName);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: DesignSystem.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.pentagon_outlined, color: Colors.orangeAccent),
+            SizedBox(width: 12),
+            Text(
+              'Nuevo Polígono',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ingresa un nombre para el polígono creado:',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Nombre del polígono',
+                labelStyle: const TextStyle(color: DesignSystem.primary),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Área total: $formattedArea',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Capa de destino: $activeLayer',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DesignSystem.primary,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              final polyName = controller.text.trim();
+              if (polyName.isEmpty) return;
+
+              setState(() {
+                LayerStore.addObject(
+                  activeLayer!,
+                  {
+                    'name': polyName,
+                    'type': GeoObjectType.polygon,
+                    'value': formattedArea,
+                    'points': finalPoints.map((p) => {
+                      'latitude': p.latitude,
+                      'longitude': p.longitude,
+                    }).toList(),
+                    'unit': 'm²',
+                    'color': 0xFFFFA726,
+                  },
+                  mapContext: _mapTitle,
+                );
+                _isMeasuringMode = false;
+                _measuringPoints.clear();
+              });
+
+              Navigator.pop(context);
+
+              _showTopBanner(
+                'Polígono "$polyName" guardado en "$activeLayer"',
                 const Color(0xFF388E3C),
               );
             },
@@ -388,6 +596,19 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     });
   }
 
+  bool _isPointInPolygon(math.Point<double> p, List<math.Point<double>> vertices) {
+    bool isInside = false;
+    int j = vertices.length - 1;
+    for (int i = 0; i < vertices.length; i++) {
+      if ((vertices[i].y < p.y && vertices[j].y >= p.y || vertices[j].y < p.y && vertices[i].y >= p.y) &&
+          (vertices[i].x + (p.y - vertices[i].y) / (vertices[j].y - vertices[i].y) * (vertices[j].x - vertices[i].x) < p.x)) {
+        isInside = !isInside;
+      }
+      j = i;
+    }
+    return isInside;
+  }
+
   void _handleMapTap(latlong2.LatLng point) {
     if (_isMeasuringMode) return;
 
@@ -466,6 +687,58 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
               break;
             }
           }
+        } else if (obj['type'] == GeoObjectType.polygon && obj['points'] != null) {
+          final pts = obj['points'] as List;
+          final List<math.Point<double>> projectedVertices = [];
+          bool isNearBoundary = false;
+
+          for (int i = 0; i < pts.length; i++) {
+            final pt = pts[i];
+            if (pt['latitude'] == null || pt['longitude'] == null) continue;
+            final pNode = _mapController.camera.project(latlong2.LatLng(
+              pt['latitude'] as double,
+              pt['longitude'] as double,
+            ));
+            projectedVertices.add(math.Point(pNode.x, pNode.y));
+          }
+
+          for (int i = 0; i < projectedVertices.length; i++) {
+            final p1 = projectedVertices[i];
+            final p2 = projectedVertices[(i + 1) % projectedVertices.length];
+
+            final double dx = p2.x - p1.x;
+            final double dy = p2.y - p1.y;
+            final double lenSq = dx * dx + dy * dy;
+            
+            double dist;
+            if (lenSq == 0) {
+              final double sx = tapPos.x - p1.x;
+              final double sy = tapPos.y - p1.y;
+              dist = math.sqrt(sx * sx + sy * sy);
+            } else {
+              final double t = ((tapPos.x - p1.x) * dx + (tapPos.y - p1.y) * dy) / lenSq;
+              final double tClamped = t.clamp(0.0, 1.0);
+              final double cx = p1.x + tClamped * dx;
+              final double cy = p1.y + tClamped * dy;
+              final double sx = tapPos.x - cx;
+              final double sy = tapPos.y - cy;
+              dist = math.sqrt(sx * sx + sy * sy);
+            }
+
+            if (dist < 25.0) {
+              isNearBoundary = true;
+              break;
+            }
+          }
+
+          final isInside = _isPointInPolygon(math.Point(tapPos.x, tapPos.y), projectedVertices);
+
+          if (isInside || isNearBoundary) {
+            if (!closeObjects.contains(obj)) {
+              closeObjects.add(obj);
+              lineTapPoint = point;
+            }
+          }
         }
       }
     } catch (e) {
@@ -475,7 +748,8 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     setState(() {
       _selectedPins.clear();
       _selectedPins.addAll(closeObjects);
-      _selectedLineTapPoint = (closeObjects.isNotEmpty && closeObjects.first['type'] == GeoObjectType.line)
+      _selectedLineTapPoint = (closeObjects.isNotEmpty &&
+              (closeObjects.first['type'] == GeoObjectType.line || closeObjects.first['type'] == GeoObjectType.polygon))
           ? lineTapPoint
           : null;
     });
@@ -631,6 +905,52 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     }
 
     return markers;
+  }
+
+  List<Polygon> _getPolygons() {
+    final List<Polygon> polygons = [];
+    final activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null && !_isMeasuringMode) return polygons;
+
+    if (activeLayer != null) {
+      final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
+      for (var obj in objects) {
+        if (obj['type'] == GeoObjectType.polygon && obj['points'] != null) {
+          final pts = obj['points'] as List;
+          final List<latlong2.LatLng> latLngList = [];
+          for (var pt in pts) {
+            final lat = pt['latitude'] as double?;
+            final lon = pt['longitude'] as double?;
+            if (lat != null && lon != null) {
+              latLngList.add(latlong2.LatLng(lat, lon));
+            }
+          }
+          if (latLngList.isNotEmpty) {
+            final colorValue = obj['color'] as int? ?? 0xFFFFA726;
+            polygons.add(
+              Polygon(
+                points: latLngList,
+                borderColor: Color(colorValue),
+                borderStrokeWidth: 3.0,
+                color: Color(colorValue).withValues(alpha: 0.25),
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    if (_isMeasuringMode && _canClosePolygon && _measuringPoints.length >= 3) {
+      polygons.add(
+        Polygon(
+          points: [..._measuringPoints, _getSafeCenter()],
+          borderColor: Colors.transparent,
+          color: DesignSystem.primary.withValues(alpha: 0.15),
+        ),
+      );
+    }
+
+    return polygons;
   }
 
   List<Polyline> _getPolylines() {
@@ -1048,6 +1368,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                             ),
                           ],
                         ),
+                        PolygonLayer(
+                          polygons: _getPolygons(),
+                        ),
                         PolylineLayer(
                           polylines: _getPolylines(),
                         ),
@@ -1204,6 +1527,17 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      if (_canClosePolygon) ...[
+                        GestureDetector(
+                          onTap: _saveMeasuringPolygon,
+                          child: const Icon(
+                            Icons.pentagon_outlined,
+                            color: DesignSystem.primary,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       if (_measuringPoints.isNotEmpty)
                         GestureDetector(
                           onTap: _saveMeasuringLine,
