@@ -49,6 +49,7 @@ dependencies:
   flutter_compass: 0.8.1
   proj4dart: ^2.1.0
   flutter_map_cancellable_tile_provider: ^3.0.2
+  share_plus: ^10.1.0
 
 dev_dependencies:
   flutter_test:

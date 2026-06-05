@@ -3,6 +3,7 @@ import 'package:dotted_border/dotted_border.dart';
 import '../theme/design_system.dart';
 import '../services/layer_store.dart';
 import '../widgets/layer_list_item.dart';
+import '../widgets/export_layer_dialog.dart';
 
 class MapLayerLibraryScreen extends StatefulWidget {
   final String mapTitle;
@@ -349,7 +350,14 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                             );
                           },
                           onRename: () {},
-                          onExport: () {},
+                          onExport: () {
+                            final objects = LayerStore.getObjects(layer['title'], mapContext: widget.mapTitle);
+                            ExportLayerDialog.show(
+                              context,
+                              layerName: layer['title'],
+                              objects: objects,
+                            );
+                          },
                         );
                       },
                     ),

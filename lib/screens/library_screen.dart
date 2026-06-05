@@ -6,6 +6,7 @@ import '../theme/design_system.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/map_list_item.dart';
 import '../widgets/layer_list_item.dart';
+import '../widgets/export_layer_dialog.dart';
 import '../widgets/map_loading_item.dart';
 import 'add_map_overlay.dart';
 import '../services/map_data_service.dart';
@@ -346,7 +347,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 );
                               },
                               onRename: () {},
-                              onExport: () {},
+                              onExport: () {
+                                final objects = LayerStore.getObjects(title, mapContext: null);
+                                ExportLayerDialog.show(
+                                  context,
+                                  layerName: title,
+                                  objects: objects,
+                                );
+                              },
                             );
                           }
                         }).toList(),
