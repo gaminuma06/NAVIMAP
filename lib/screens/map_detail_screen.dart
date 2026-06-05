@@ -10,6 +10,7 @@ import '../services/user_location_service.dart';
 import '../services/georeference_service.dart';
 import '../widgets/user_location_marker.dart';
 import '../widgets/object_list_item.dart';
+import 'object_attributes_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
@@ -41,6 +42,26 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   String _coordinateFormat = 'DD';
   double _dragDistance = 0.0;
   bool _isBottomSheetOpen = false;
+  final List<Map<String, dynamic>> _selectedPins = [];
+  String? _bannerMessage;
+  Color? _bannerColor;
+  Timer? _bannerTimer;
+
+  void _showTopBanner(String message, Color color) {
+    _bannerTimer?.cancel();
+    setState(() {
+      _bannerMessage = message;
+      _bannerColor = color;
+    });
+    _bannerTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _bannerMessage = null;
+          _bannerColor = null;
+        });
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -83,11 +104,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     );
 
     if (!isInside) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tu ubicación está fuera de los límites de este mapa'),
-          backgroundColor: Colors.redAccent,
-        )
+      _showTopBanner(
+        'Tu ubicación está fuera de los límites de este mapa',
+        const Color(0xFFD32F2F),
       );
       return;
     }
@@ -99,11 +118,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       _mapController.camera.zoom,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cámara centrada en tu posición GPS'),
-        backgroundColor: Colors.green,
-      )
+    _showTopBanner(
+      'Cámara centrada en tu posición GPS',
+      const Color(0xFF388E3C),
     );
   }
 
@@ -118,6 +135,65 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   double _calculateMarkerSize(double zoom) {
     double size = 36.0 + (zoom - 15.0) * 3.0;
     return size.clamp(16.0, 64.0);
+  }
+
+  void _openPinAttributes(Map<String, dynamic> pinObj) {
+    final activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null) return;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ObjectAttributesScreen(
+          layerName: activeLayer,
+          object: pinObj,
+          mapContext: _mapTitle,
+        ),
+      ),
+    ).then((value) {
+      setState(() {
+        _selectedPins.clear();
+      });
+    });
+  }
+
+  void _handlePinTap(Map<String, dynamic> clickedObj) {
+    final activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null) return;
+    final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
+
+    final List<Map<String, dynamic>> closePins = [];
+    
+    try {
+      final clickedLat = clickedObj['latitude'] as double;
+      final clickedLon = clickedObj['longitude'] as double;
+      final clickedPos = _mapController.camera.project(latlong2.LatLng(clickedLat, clickedLon));
+
+      for (var obj in objects) {
+        if (obj['type'] == GeoObjectType.point &&
+            obj['latitude'] != null &&
+            obj['longitude'] != null) {
+          final lat = obj['latitude'] as double;
+          final lon = obj['longitude'] as double;
+          final pos = _mapController.camera.project(latlong2.LatLng(lat, lon));
+          
+          final dx = clickedPos.x - pos.x;
+          final dy = clickedPos.y - pos.y;
+          final dist = math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 40.0) {
+            closePins.add(obj);
+          }
+        }
+      }
+    } catch (e) {
+      closePins.add(clickedObj);
+    }
+    
+    setState(() {
+      _selectedPins.clear();
+      _selectedPins.addAll(closePins);
+    });
   }
 
   List<Marker> _getPinMarkers() {
@@ -135,18 +211,22 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
         final lat = obj['latitude'] as double;
         final lon = obj['longitude'] as double;
         final colorValue = obj['color'] as int? ?? 0xFFFF1744;
+        
+        final isSelected = _selectedPins.contains(obj);
+        final currentSize = isSelected ? markerSize * 1.35 : markerSize;
+
         markers.add(
           Marker(
             point: latlong2.LatLng(lat, lon),
-            width: markerSize,
-            height: markerSize,
+            width: currentSize,
+            height: currentSize,
             alignment: Alignment.topCenter,
-            child: Tooltip(
-              message: obj['name'],
+            child: GestureDetector(
+              onTap: () => _handlePinTap(obj),
               child: Icon(
                 Icons.location_on,
                 color: Color(colorValue),
-                size: markerSize,
+                size: currentSize,
                 shadows: const [
                   Shadow(
                     color: Colors.black45,
@@ -160,6 +240,85 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
         );
       }
     }
+
+    if (_selectedPins.isNotEmpty) {
+      final firstSelected = _selectedPins.first;
+      final lat = firstSelected['latitude'] as double;
+      final lon = firstSelected['longitude'] as double;
+
+      markers.add(
+        Marker(
+          point: latlong2.LatLng(lat, lon),
+          width: 220,
+          height: (42.0 * _selectedPins.length) + 12.0,
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+              border: Border.all(color: DesignSystem.primary, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(DesignSystem.radiusSm - 1.5),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: _selectedPins.map((pin) {
+                  final isLast = pin == _selectedPins.last;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _openPinAttributes(pin),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.edit, color: DesignSystem.primary, size: 14),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    pin['name'],
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (!isLast)
+                        const Divider(
+                          color: Colors.white10,
+                          height: 1,
+                          thickness: 1,
+                        ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return markers;
   }
 
@@ -283,11 +442,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
               Navigator.pop(context);
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Marcador "$pointName" guardado en "$activeLayer"'),
-                  backgroundColor: Colors.green,
-                ),
+              _showTopBanner(
+                'Marcador "$pointName" guardado en "$activeLayer"',
+                const Color(0xFF388E3C),
               );
             },
             child: const Text('GUARDAR'),
@@ -371,6 +528,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
   @override
   void dispose() {
+    _bannerTimer?.cancel();
     _mapEventSubscription?.cancel();
     _locationSubscription?.cancel();
     _pdfController?.dispose();
@@ -482,6 +640,11 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                             _currentMapCenter = camera.center;
                           });
                         },
+                        onTap: (tapPosition, point) {
+                          setState(() {
+                            _selectedPins.clear();
+                          });
+                        },
                         onMapReady: () {
                           // Forzar un frame de renderizado adicional poco después de que el mapa esté listo.
                           // Esto asegura que el marcador GPS se dibuje en su posición correcta una vez que el
@@ -531,9 +694,6 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                           ],
                         ),
                         MarkerLayer(
-                          markers: _getPinMarkers(),
-                        ),
-                        MarkerLayer(
                           markers: (_currentUserLocation != null &&
                                   GeoreferenceService().isUserInsideMap(
                                     _mapTitle,
@@ -545,10 +705,15 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                                     point: latlong2.LatLng(_currentUserLocation!.latitude, _currentUserLocation!.longitude),
                                     width: 60,
                                     height: 60,
-                                    child: UserLocationMarker(heading: _currentUserLocation?.heading ?? 0),
+                                    child: IgnorePointer(
+                                      child: UserLocationMarker(heading: _currentUserLocation?.heading ?? 0),
+                                    ),
                                   ),
                                 ]
                               : [],
+                        ),
+                        MarkerLayer(
+                          markers: _getPinMarkers(),
                         ),
                       ],
                     );
@@ -716,6 +881,39 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
               ),
             ),
           ),
+          if (_bannerMessage != null)
+            Positioned(
+              top: 16,
+              left: 32,
+              right: 32,
+              child: SafeArea(
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _bannerColor,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      _bannerMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

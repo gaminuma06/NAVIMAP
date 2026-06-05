@@ -117,10 +117,13 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                   return;
                 }
                 setState(() {
-                  _currentLayers.add({'title': name, 'objects': 0});
-                  LayerStore.initializeLayer(name, mapContext: widget.mapTitle);
-                });
-                Navigator.pop(context);
+                LayerStore.initializeLayer(name, mapContext: widget.mapTitle);
+                final mapLayers = LayerStore.getLayers(widget.mapTitle);
+                if (!mapLayers.any((l) => l['title'].toLowerCase() == name.toLowerCase())) {
+                  mapLayers.add({'title': name, 'objects': 0});
+                }
+              });
+              Navigator.pop(context);
               },
               child: const Text('CREAR CAPA'),
             ),
@@ -208,13 +211,6 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                     : () {
                         setState(() {
                           for (var name in selectedLayerNames) {
-                            final globalLayer = globalLayers.firstWhere(
-                              (l) => l['title'] == name,
-                            );
-                            _currentLayers.add({
-                              'title': name,
-                              'objects': globalLayer['objects'],
-                            });
                             LayerStore.importLayerWithObjects(
                               name,
                               widget.mapTitle,
@@ -340,7 +336,9 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                                     ),
                                     onPressed: () {
                                       setState(() {
-                                        _currentLayers.removeAt(index);
+                                        final targetTitle = layer['title'];
+                                        final realLayers = LayerStore.getLayers(widget.mapTitle);
+                                        realLayers.removeWhere((l) => l['title'] == targetTitle);
                                       });
                                       Navigator.pop(context);
                                     },

@@ -70,6 +70,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void initState() {
     super.initState();
     _preloadFonts();
+    UserLocationService().startTracking();
     _lastLocation = UserLocationService().lastData;
     _recalculateMapStatuses();
     _locationSubscription = UserLocationService().locationStream.listen((
