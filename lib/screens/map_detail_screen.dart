@@ -47,6 +47,194 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   Color? _bannerColor;
   Timer? _bannerTimer;
 
+  bool _isMeasuringMode = false;
+  final List<latlong2.LatLng> _measuringPoints = [];
+
+  latlong2.LatLng _getSafeCenter() {
+    if (_currentMapCenter != null) return _currentMapCenter!;
+    try {
+      return _mapController.camera.center;
+    } catch (_) {
+      return const latlong2.LatLng(8.623083, -73.732583);
+    }
+  }
+
+  double _calculateGeodesicLength(List<latlong2.LatLng> points) {
+    double total = 0.0;
+    const double r = 6371000; // Earth radius in meters
+    for (int i = 0; i < points.length - 1; i++) {
+      final lat1 = points[i].latitude * math.pi / 180;
+      final lon1 = points[i].longitude * math.pi / 180;
+      final lat2 = points[i + 1].latitude * math.pi / 180;
+      final lon2 = points[i + 1].longitude * math.pi / 180;
+
+      final dLat = lat2 - lat1;
+      final dLon = lon2 - lon1;
+
+      final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+          math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2) * math.sin(dLon / 2);
+      final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+      total += r * c;
+    }
+    return total;
+  }
+
+  String _formatLength(double meters) {
+    if (meters < 1000) {
+      return '${meters.toStringAsFixed(2)} m';
+    } else {
+      return '${(meters / 1000).toStringAsFixed(2)} km';
+    }
+  }
+
+  void _toggleMeasuringMode() {
+    setState(() {
+      _isMeasuringMode = !_isMeasuringMode;
+      _measuringPoints.clear();
+      _selectedPins.clear();
+    });
+  }
+
+  void _addMeasuringPoint() {
+    setState(() {
+      _measuringPoints.add(_getSafeCenter());
+    });
+  }
+
+  void _saveMeasuringLine() {
+    if (_measuringPoints.isEmpty) return;
+
+    final List<latlong2.LatLng> finalPoints = List.from(_measuringPoints);
+    if (finalPoints.length == 1) {
+      finalPoints.add(_getSafeCenter());
+    }
+
+    final double totalLength = _calculateGeodesicLength(finalPoints);
+    final formattedLength = _formatLength(totalLength);
+
+    String? activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null) {
+      final existingLayers = LayerStore.getLayers(_mapTitle);
+      if (existingLayers.isNotEmpty) {
+        activeLayer = existingLayers.first['title'];
+        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      } else {
+        int i = 1;
+        String candidate = 'Capa $i';
+        while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+          i++;
+          candidate = 'Capa $i';
+        }
+        activeLayer = candidate;
+        LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
+        existingLayers.add({'title': activeLayer, 'objects': 0});
+        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      }
+    }
+
+    final objects = LayerStore.getObjects(activeLayer!, mapContext: _mapTitle);
+    final linesCount = objects.where((obj) => obj['type'] == GeoObjectType.line).length;
+    final defaultLineName = 'Línea ${linesCount + 1}';
+
+    final controller = TextEditingController(text: defaultLineName);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: DesignSystem.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.timeline, color: Colors.orangeAccent),
+            SizedBox(width: 12),
+            Text(
+              'Nueva Línea',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ingresa un nombre para la línea creada:',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Nombre de la línea',
+                labelStyle: const TextStyle(color: DesignSystem.primary),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Longitud total: $formattedLength',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Capa de destino: $activeLayer',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DesignSystem.primary,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              final lineName = controller.text.trim();
+              if (lineName.isEmpty) return;
+
+              setState(() {
+                LayerStore.addObject(
+                  activeLayer!,
+                  {
+                    'name': lineName,
+                    'type': GeoObjectType.line,
+                    'value': formattedLength,
+                    'points': finalPoints.map((p) => {
+                      'latitude': p.latitude,
+                      'longitude': p.longitude,
+                    }).toList(),
+                  },
+                  mapContext: _mapTitle,
+                );
+                _isMeasuringMode = false;
+                _measuringPoints.clear();
+              });
+
+              Navigator.pop(context);
+
+              _showTopBanner(
+                'Línea "$lineName" guardada en "$activeLayer"',
+                const Color(0xFF388E3C),
+              );
+            },
+            child: const Text('GUARDAR'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showTopBanner(String message, Color color) {
     _bannerTimer?.cancel();
     setState(() {
@@ -319,7 +507,74 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       );
     }
 
+    // Si estamos en modo de medición, agregar marcadores para los vértices creados
+    if (_isMeasuringMode) {
+      for (int i = 0; i < _measuringPoints.length; i++) {
+        markers.add(
+          Marker(
+            point: _measuringPoints[i],
+            width: 12,
+            height: 12,
+            alignment: Alignment.center,
+            child: Container(
+              decoration: BoxDecoration(
+                color: DesignSystem.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
     return markers;
+  }
+
+  List<Polyline> _getPolylines() {
+    final List<Polyline> polylines = [];
+    final activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null && !_isMeasuringMode) return polylines;
+
+    if (activeLayer != null) {
+      final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
+      for (var obj in objects) {
+        if (obj['type'] == GeoObjectType.line && obj['points'] != null) {
+          final pts = obj['points'] as List;
+          final List<latlong2.LatLng> latLngList = [];
+          for (var pt in pts) {
+            final lat = pt['latitude'] as double?;
+            final lon = pt['longitude'] as double?;
+            if (lat != null && lon != null) {
+              latLngList.add(latlong2.LatLng(lat, lon));
+            }
+          }
+          if (latLngList.isNotEmpty) {
+            final colorValue = obj['color'] as int? ?? 0xFFFF9100;
+            polylines.add(
+              Polyline(
+                points: latLngList,
+                color: Color(colorValue),
+                strokeWidth: 4.0,
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    if (_isMeasuringMode && _measuringPoints.isNotEmpty) {
+      final currentCenter = _getSafeCenter();
+      polylines.add(
+        Polyline(
+          points: [..._measuringPoints, currentCenter],
+          color: DesignSystem.primary.withOpacity(0.8),
+          strokeWidth: 3.5,
+        ),
+      );
+    }
+
+    return polylines;
   }
 
   void _handlePlacePin() {
@@ -693,6 +948,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                             ),
                           ],
                         ),
+                        PolylineLayer(
+                          polylines: _getPolylines(),
+                        ),
                         MarkerLayer(
                           markers: (_currentUserLocation != null &&
                                   GeoreferenceService().isUserInsideMap(
@@ -814,68 +1072,116 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
               child: SafeArea(
                 child: Row(
                   children: [
-                    const Icon(Icons.straighten, color: DesignSystem.primary),
+                    GestureDetector(
+                      onTap: _toggleMeasuringMode,
+                      child: Icon(
+                        Icons.straighten,
+                        color: _isMeasuringMode ? Colors.redAccent : DesignSystem.primary,
+                      ),
+                    ),
                     const SizedBox(width: 16),
-                    Expanded(
-                      child: GestureDetector(
-                        onVerticalDragStart: (_) {
-                          _dragDistance = 0.0;
-                        },
-                        onVerticalDragUpdate: (details) {
-                          _dragDistance += details.primaryDelta ?? 0.0;
-                          if (_dragDistance < -20) {
-                            _dragDistance = 0.0;
-                            _showCoordinateFormatSelector(context);
-                          }
-                        },
-                        onVerticalDragEnd: (details) {
-                          if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
-                            _showCoordinateFormatSelector(context);
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1F1F1F),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white10),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                centerLatLon != null
-                                    ? GeoreferenceService().formatCoordinates(
-                                        centerLatLon['lat']!,
-                                        centerLatLon['lon']!,
-                                        _coordinateFormat,
-                                      )
-                                    : (GeoreferenceService().hasCalibrationFor(
-                                             _mapTitle,
-                                           )
-                                           ? 'Calculando...'
-                                           : 'NO REFERENCIADO'),
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontFamily: 'monospace',
-                                  fontWeight: FontWeight.bold,
-                                ),
+                    if (_isMeasuringMode) ...[
+                      Expanded(
+                        child: Center(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: DesignSystem.primary,
+                              side: const BorderSide(color: DesignSystem.primary),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                            ],
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                            onPressed: _addMeasuringPoint,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: Text(
+                              _measuringPoints.isEmpty
+                                  ? 'Añadir inicio'
+                                  : 'Añadir intersección (${_formatLength(_calculateGeodesicLength([..._measuringPoints, _getSafeCenter()]))})',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                     const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _openMapLayers,
-                      child: const Icon(
-                        Icons.layers_outlined,
-                        color: DesignSystem.primary,
+                      const SizedBox(width: 8),
+                      if (_measuringPoints.isNotEmpty)
+                        GestureDetector(
+                          onTap: _saveMeasuringLine,
+                          child: const Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.green,
+                          ),
+                        )
+                      else
+                        GestureDetector(
+                          onTap: _openMapLayers,
+                          child: const Icon(
+                            Icons.layers_outlined,
+                            color: Colors.white24,
+                          ),
+                        ),
+                    ] else ...[
+                      Expanded(
+                        child: GestureDetector(
+                          onVerticalDragStart: (_) {
+                            _dragDistance = 0.0;
+                          },
+                          onVerticalDragUpdate: (details) {
+                            _dragDistance += details.primaryDelta ?? 0.0;
+                            if (_dragDistance < -20) {
+                              _dragDistance = 0.0;
+                              _showCoordinateFormatSelector(context);
+                            }
+                          },
+                          onVerticalDragEnd: (details) {
+                            if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
+                              _showCoordinateFormatSelector(context);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1F1F1F),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  centerLatLon != null
+                                      ? GeoreferenceService().formatCoordinates(
+                                          centerLatLon['lat']!,
+                                          centerLatLon['lon']!,
+                                          _coordinateFormat,
+                                        )
+                                      : (GeoreferenceService().hasCalibrationFor(
+                                               _mapTitle,
+                                             )
+                                             ? 'Calculando...'
+                                             : 'NO REFERENCIADO'),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _openMapLayers,
+                        child: const Icon(
+                          Icons.layers_outlined,
+                          color: DesignSystem.primary,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

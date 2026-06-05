@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/design_system.dart';
 import '../services/layer_store.dart';
 import '../services/georeference_service.dart';
+import '../widgets/object_list_item.dart';
 
 class ObjectAttributesScreen extends StatefulWidget {
   final String layerName;
@@ -44,6 +45,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.object['name']);
     
+    final bool isLine = widget.object['type'] == GeoObjectType.line;
     _currentLat = widget.object['latitude'] as double? ?? 0.0;
     _currentLon = widget.object['longitude'] as double? ?? 0.0;
     
@@ -54,16 +56,19 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
     _createdAt = widget.object['createdAt'] as String? ?? DateTime.now().toIso8601String();
     _selectedFormat = widget.object['coordinateFormat'] as String? ?? 'DD';
     
-    _updateTextFields();
-    
-    _latController.addListener(_onCoordsChanged);
-    _lonController.addListener(_onCoordsChanged);
+    if (!isLine) {
+      _updateTextFields();
+      _latController.addListener(_onCoordsChanged);
+      _lonController.addListener(_onCoordsChanged);
+    }
   }
 
   @override
   void dispose() {
-    _latController.removeListener(_onCoordsChanged);
-    _lonController.removeListener(_onCoordsChanged);
+    if (widget.object['type'] != GeoObjectType.line) {
+      _latController.removeListener(_onCoordsChanged);
+      _lonController.removeListener(_onCoordsChanged);
+    }
     _nameController.dispose();
     _latController.dispose();
     _lonController.dispose();
@@ -88,6 +93,28 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final newName = _nameController.text.trim();
+
+    if (widget.object['type'] == GeoObjectType.line) {
+      final updatedObject = {
+        'name': newName,
+        'type': widget.object['type'],
+        'value': widget.object['value'],
+        'points': widget.object['points'],
+        'color': _selectedColor,
+        'createdAt': _createdAt,
+      };
+
+      LayerStore.updateObject(
+        widget.layerName,
+        widget.object,
+        updatedObject,
+        mapContext: widget.mapContext,
+      );
+
+      Navigator.pop(context, true);
+      return;
+    }
+
     final newLat = _currentLat;
     final newLon = _currentLon;
 
@@ -178,108 +205,133 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                 },
               ),
               const SizedBox(height: DesignSystem.spacingMd),
-              const Text(
-                'COORDENADAS TÁCTICAS',
-                style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: DesignSystem.spacingMd),
-              TextFormField(
-                controller: _latController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: _latLabel,
-                  labelStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: DesignSystem.primary),
-                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+              if (widget.object['type'] == GeoObjectType.line) ...[
+                const Text(
+                  'INFORMACIÓN DE MEDIDA',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                readOnly: _currentFormat != 'DD',
-                validator: (value) {
-                  if (_currentFormat != 'DD') return null;
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Por favor ingresa la latitud';
-                  }
-                  final parsed = double.tryParse(value.trim());
-                  if (parsed == null) {
-                    return 'Ingresa un número decimal válido';
-                  }
-                  if (parsed < -90 || parsed > 90) {
-                    return 'La latitud debe estar entre -90 y 90';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: DesignSystem.spacingMd),
-              TextFormField(
-                controller: _lonController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: _lonLabel,
-                  labelStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: DesignSystem.primary),
-                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
-                  ),
-                ),
-                readOnly: _currentFormat != 'DD',
-                validator: (value) {
-                  if (_currentFormat != 'DD') return null;
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Por favor ingresa la longitud';
-                  }
-                  final parsed = double.tryParse(value.trim());
-                  if (parsed == null) {
-                    return 'Ingresa un número decimal válido';
-                  }
-                  if (parsed < -180 || parsed > 180) {
-                    return 'La longitud debe estar entre -180 y 180';
-                  }
-                  return null;
-                },
-              ),
-
-              if (!_isActiveLayer) ...[
                 const SizedBox(height: DesignSystem.spacingMd),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: DesignSystem.primary,
-                      side: const BorderSide(color: DesignSystem.primary),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
-                      ),
+                TextFormField(
+                  initialValue: widget.object['value'],
+                  style: const TextStyle(color: Colors.white70),
+                  decoration: InputDecoration(
+                    labelText: 'Longitud de la línea',
+                    labelStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.02),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                     ),
-                    onPressed: _showFormatSelector,
-                    icon: const Icon(Icons.straighten, size: 18),
-                    label: const Text(
-                      'CAMBIAR SISTEMA DE COORDENADAS',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                  ),
+                  readOnly: true,
+                ),
+              ] else ...[
+                const Text(
+                  'COORDENADAS TÁCTICAS',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: DesignSystem.spacingMd),
+                TextFormField(
+                  controller: _latController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: _latLabel,
+                    labelStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: DesignSystem.primary),
+                      borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                    ),
+                  ),
+                  readOnly: _currentFormat != 'DD',
+                  validator: (value) {
+                    if (_currentFormat != 'DD') return null;
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Por favor ingresa la latitud';
+                    }
+                    final parsed = double.tryParse(value.trim());
+                    if (parsed == null) {
+                      return 'Ingresa un número decimal válido';
+                    }
+                    if (parsed < -90 || parsed > 90) {
+                      return 'La latitud debe estar entre -90 y 90';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: DesignSystem.spacingMd),
+                TextFormField(
+                  controller: _lonController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: _lonLabel,
+                    labelStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(color: DesignSystem.primary),
+                      borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                    ),
+                  ),
+                  readOnly: _currentFormat != 'DD',
+                  validator: (value) {
+                    if (_currentFormat != 'DD') return null;
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Por favor ingresa la longitud';
+                    }
+                    final parsed = double.tryParse(value.trim());
+                    if (parsed == null) {
+                      return 'Ingresa un número decimal válido';
+                    }
+                    if (parsed < -180 || parsed > 180) {
+                      return 'La longitud debe estar entre -180 y 180';
+                    }
+                    return null;
+                  },
+                ),
+                if (!_isActiveLayer) ...[
+                  const SizedBox(height: DesignSystem.spacingMd),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: DesignSystem.primary,
+                        side: const BorderSide(color: DesignSystem.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                        ),
+                      ),
+                      onPressed: _showFormatSelector,
+                      icon: const Icon(Icons.straighten, size: 18),
+                      label: const Text(
+                        'CAMBIAR SISTEMA DE COORDENADAS',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
               const SizedBox(height: DesignSystem.spacingLg),
               const Text(
@@ -479,6 +531,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
   }
 
   void _updateTextFields() {
+    if (widget.object['type'] == GeoObjectType.line) return;
     _latController.removeListener(_onCoordsChanged);
     _lonController.removeListener(_onCoordsChanged);
 
