@@ -189,206 +189,231 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ],
       ),
       drawer: const SidebarMenu(),
-      body: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(DesignSystem.spacingMd),
-              child: Container(
-                padding: const EdgeInsets.all(DesignSystem.spacingXs),
-                decoration: BoxDecoration(
-                  color: DesignSystem.surfaceContainer,
-                  borderRadius: BorderRadius.circular(
-                    DesignSystem.radiusDefault,
+      body: Stack(
+        children: [
+          ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(DesignSystem.spacingMd),
+                  child: Container(
+                    padding: const EdgeInsets.all(DesignSystem.spacingXs),
+                    decoration: BoxDecoration(
+                      color: DesignSystem.surfaceContainer,
+                      borderRadius: BorderRadius.circular(
+                        DesignSystem.radiusDefault,
+                      ),
+                      border: Border.all(color: DesignSystem.outline),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildSegment('Mapas', 0),
+                        _buildSegment('Capas', 1),
+                      ],
+                    ),
                   ),
-                  border: Border.all(color: DesignSystem.outline),
                 ),
-                child: Row(
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignSystem.spacingMd,
+                  ),
+                  child: Text(
+                    '${isMapsTab ? "MAPAS" : "CAPAS"} DISPONIBLES (${currentList.length + (isMapsTab ? _loadingMaps.length : 0)})',
+                    style: DesignSystem.labelCaps.copyWith(color: Colors.white54),
+                  ),
+                ),
+                const SizedBox(height: DesignSystem.spacingMd),
+                Expanded(
+                  child:
+                      (currentList.isEmpty && _loadingMaps.isEmpty && !_isSearching)
+                      ? _buildEmptyStatePlaceholder(isMapsTab ? 'mapas' : 'capas')
+                      : ListView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: DesignSystem.spacingMd,
+                          ),
+                          children: [
+                            // Tarjetas de carga primero
+                            if (isMapsTab)
+                              ..._loadingMaps
+                                  .map((name) => MapLoadingItem(title: name))
+                                  .toList(),
+                            // Lista normal
+                            ...currentList.map((item) {
+                              final String title = item['title'];
+                              if (isMapsTab) {
+                                return MapListItem(
+                                  title: title,
+                                  dateAdded: item['date'],
+                                  status: item['status'],
+                                  thumbnailBytes: item['thumbnailBytes'],
+                                  onTap: () {
+                                    final bytes = MapStore.bytesCache[title];
+                                    if (bytes != null) {
+                                      MapDataService().setCurrentMap(
+                                        title,
+                                        Uint8List.fromList(bytes),
+                                      );
+                                    }
+                                    Navigator.pushNamed(context, '/detail');
+                                  },
+                                  onDelete: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: DesignSystem.surface,
+                                        title: const Text(
+                                          '¿Eliminar Mapa?',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        content: Text(
+                                          '¿Deseas eliminar el mapa "${title}"? Todos los datos asociados se perderán.',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('CANCELAR'),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: DesignSystem.error,
+                                            ),
+                                            onPressed: () {
+                                              setState(
+                                                () => _mockMaps.remove(item),
+                                              );
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text('ELIMINAR'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+                              } else {
+                                return LayerListItem(
+                                  title: title,
+                                  objectCount: item['objects'] ?? 0,
+                                  onTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/layer-objects',
+                                      arguments: {
+                                        'layerName': title,
+                                        'mapContext': null,
+                                      },
+                                    ).then((_) => setState(() {}));
+                                  },
+                                  onDelete: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: DesignSystem.surface,
+                                        title: const Text(
+                                          '¿Eliminar Capa?',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        content: Text(
+                                          '¿Deseas eliminar "${title}" del respaldo global? Esta acción no se puede deshacer.',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('CANCELAR'),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: DesignSystem.error,
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                LayerStore.layers.remove(item);
+                                                LayerStore.mapLayerObjects.remove(
+                                                  title,
+                                                );
+                                              });
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text('ELIMINAR'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                  onRename: () {},
+                                  onExport: () {
+                                    final objects = LayerStore.getObjects(title, mapContext: null);
+                                    ExportLayerDialog.show(
+                                      context,
+                                      layerName: title,
+                                      objects: objects,
+                                    );
+                                  },
+                                );
+                              }
+                            }).toList(),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: 88,
+            right: 16,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/satellite');
+              },
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE0E0E0), // Gris pálido
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black38,
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildSegment('Mapas', 0),
-                    _buildSegment('Capas', 1),
+                    Icon(
+                      Icons.satellite_alt,
+                      color: Color(0xFF1976D2), // Azul pálido / medio
+                      size: 20,
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Satélite',
+                      style: TextStyle(
+                        color: Color(0xFF1976D2), // Azul pálido / medio
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: DesignSystem.spacingMd,
-              ),
-              child: Text(
-                '${isMapsTab ? "MAPAS" : "CAPAS"} DISPONIBLES (${currentList.length + (isMapsTab ? _loadingMaps.length : 0)})',
-                style: DesignSystem.labelCaps.copyWith(color: Colors.white54),
-              ),
-            ),
-            const SizedBox(height: DesignSystem.spacingMd),
-            Expanded(
-              child:
-                  (currentList.isEmpty && _loadingMaps.isEmpty && !_isSearching)
-                  ? _buildEmptyStatePlaceholder(isMapsTab ? 'mapas' : 'capas')
-                  : ListView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: DesignSystem.spacingMd,
-                      ),
-                      children: [
-                        // Tarjetas de carga primero
-                        if (isMapsTab)
-                          ..._loadingMaps
-                              .map((name) => MapLoadingItem(title: name))
-                              .toList(),
-                        // Lista normal
-                        ...currentList.map((item) {
-                          final String title = item['title'];
-                          if (isMapsTab) {
-                            return MapListItem(
-                              title: title,
-                              dateAdded: item['date'],
-                              status: item['status'],
-                              thumbnailBytes: item['thumbnailBytes'],
-                              onTap: () {
-                                final bytes = MapStore.bytesCache[title];
-                                if (bytes != null) {
-                                  MapDataService().setCurrentMap(
-                                    title,
-                                    Uint8List.fromList(bytes),
-                                  );
-                                }
-                                Navigator.pushNamed(context, '/detail');
-                              },
-                              onDelete: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    backgroundColor: DesignSystem.surface,
-                                    title: const Text(
-                                      '¿Eliminar Mapa?',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                    content: Text(
-                                      '¿Deseas eliminar el mapa "${title}"? Todos los datos asociados se perderán.',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('CANCELAR'),
-                                      ),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: DesignSystem.error,
-                                        ),
-                                        onPressed: () {
-                                          setState(
-                                            () => _mockMaps.remove(item),
-                                          );
-                                          Navigator.pop(context);
-                                        },
-                                        child: const Text('ELIMINAR'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            );
-                          } else {
-                            return LayerListItem(
-                              title: title,
-                              objectCount: item['objects'] ?? 0,
-                              onTap: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  '/layer-objects',
-                                  arguments: {
-                                    'layerName': title,
-                                    'mapContext': null,
-                                  },
-                                ).then((_) => setState(() {}));
-                              },
-                              onDelete: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    backgroundColor: DesignSystem.surface,
-                                    title: const Text(
-                                      '¿Eliminar Capa?',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                    content: Text(
-                                      '¿Deseas eliminar "${title}" del respaldo global? Esta acción no se puede deshacer.',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('CANCELAR'),
-                                      ),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: DesignSystem.error,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            LayerStore.layers.remove(item);
-                                            LayerStore.mapLayerObjects.remove(
-                                              title,
-                                            );
-                                          });
-                                          Navigator.pop(context);
-                                        },
-                                        child: const Text('ELIMINAR'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              onRename: () {},
-                              onExport: () {
-                                final objects = LayerStore.getObjects(title, mapContext: null);
-                                ExportLayerDialog.show(
-                                  context,
-                                  layerName: title,
-                                  objects: objects,
-                                );
-                              },
-                            );
-                          }
-                        }).toList(),
-                      ],
-                    ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _onAddPressed(),
         child: const Icon(Icons.add),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        backgroundColor: DesignSystem.surface,
-        selectedItemColor: DesignSystem.primary,
-        unselectedItemColor: Colors.white24,
-        selectedLabelStyle: DesignSystem.labelCaps,
-        unselectedLabelStyle: DesignSystem.labelCaps,
-        onTap: (index) {
-          if (index == 0) return;
-          Navigator.pushReplacementNamed(context, '/satellite');
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.folder),
-            label: 'Biblioteca',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.satellite_alt),
-            label: 'Satélite',
-          ),
-        ],
       ),
     );
   }

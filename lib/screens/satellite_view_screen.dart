@@ -190,25 +190,6 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
-        backgroundColor: DesignSystem.surface,
-        selectedItemColor: DesignSystem.primary,
-        unselectedItemColor: Colors.white24,
-        onTap: (index) {
-          if (index == 0) Navigator.pushReplacementNamed(context, '/');
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.folder),
-            label: 'Biblioteca',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.satellite_alt),
-            label: 'Satélite',
-          ),
-        ],
-      ),
     );
   }
 
