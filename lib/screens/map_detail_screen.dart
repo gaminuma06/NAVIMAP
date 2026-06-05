@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/design_system.dart';
-import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:pdfx/pdfx.dart';
@@ -1601,6 +1601,20 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                           onVerticalDragEnd: (details) {
                             if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
                               _showCoordinateFormatSelector(context);
+                            }
+                          },
+                          onLongPress: () async {
+                            if (centerLatLon != null) {
+                              final String coordText = GeoreferenceService().formatCoordinates(
+                                centerLatLon['lat']!,
+                                centerLatLon['lon']!,
+                                _coordinateFormat,
+                              );
+                              await Clipboard.setData(ClipboardData(text: coordText));
+                              _showTopBanner(
+                                'Coordenadas copiadas al portapapeles',
+                                const Color(0xFF388E3C),
+                              );
                             }
                           },
                           child: Container(
