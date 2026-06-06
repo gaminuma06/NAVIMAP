@@ -348,7 +348,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                       ),
                                     );
                                   },
-                                  onRename: () {},
                                   onExport: () {
                                     final objects = LayerStore.getObjects(title, mapContext: null);
                                     ExportLayerDialog.show(

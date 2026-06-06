@@ -134,6 +134,94 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
     );
   }
 
+  void _showRenameLayerDialog(String oldName) {
+    final controller = TextEditingController(text: oldName);
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: DesignSystem.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.edit_outlined, color: DesignSystem.primary),
+              SizedBox(width: 12),
+              Text(
+                'Renombrar Capa',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ingresa el nuevo nombre para la capa "$oldName":',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Nombre de la capa',
+                  errorText: errorText,
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                  ),
+                ),
+                onChanged: (value) {
+                  if (errorText != null) setDialogState(() => errorText = null);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCELAR'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignSystem.primary,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isEmpty) return;
+                if (name.toLowerCase() == oldName.toLowerCase()) {
+                  Navigator.pop(context);
+                  return;
+                }
+                if (_currentLayers.any(
+                  (l) => l['title'].toLowerCase() == name.toLowerCase(),
+                )) {
+                  setDialogState(
+                    () => errorText = 'Ya existe esta capa en el mapa',
+                  );
+                  return;
+                }
+                setState(() {
+                  LayerStore.renameLayer(oldName, name);
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('RENOMBRAR'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _importFromGlobal() {
     final globalLayers = LayerStore.getLayers(null);
     final availableToImport = globalLayers
@@ -349,7 +437,7 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                               ),
                             );
                           },
-                          onRename: () {},
+                          onRename: () => _showRenameLayerDialog(layer['title']),
                           onExport: () {
                             final objects = LayerStore.getObjects(layer['title'], mapContext: widget.mapTitle);
                             ExportLayerDialog.show(

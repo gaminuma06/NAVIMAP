@@ -13,7 +13,6 @@ import '../widgets/object_list_item.dart';
 import 'object_attributes_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
-import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 
 class MapDetailScreen extends StatefulWidget {
   const MapDetailScreen({super.key});
@@ -1294,7 +1293,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       body: Stack(
         key: _mapAreaKey,
         children: [
-          Container(color: Colors.grey[600]),
+          Container(color: Colors.grey[850]),
           _pdfController == null
               ? const Center(
                   child: CircularProgressIndicator(color: DesignSystem.primary),
@@ -1385,11 +1384,6 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                         },
                       ),
                       children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.example.navimap',
-                          tileProvider: CancellableNetworkTileProvider(silenceExceptions: true),
-                        ),
                         OverlayImageLayer(
                           overlayImages: [
                             OverlayImage(

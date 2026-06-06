@@ -134,23 +134,24 @@ class LayerListItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                const PopupMenuItem<String>(
-                  value: 'rename',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.edit_outlined,
-                        color: Colors.white70,
-                        size: 20,
-                      ),
-                      SizedBox(width: 12),
-                      Text(
-                        'Renombrar capa',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                    ],
+                if (onRename != null)
+                  const PopupMenuItem<String>(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.edit_outlined,
+                          color: Colors.white70,
+                          size: 20,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Renombrar capa',
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 const PopupMenuItem<String>(
                   value: 'export',
                   child: Row(

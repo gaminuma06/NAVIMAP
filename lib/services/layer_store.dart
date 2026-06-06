@@ -333,6 +333,50 @@ class LayerStore {
     }
   }
 
+  static void renameLayer(String oldName, String newName) {
+    if (oldName.trim() == newName.trim()) return;
+
+    final canonicalOld = _getCanonicalLayerName(oldName);
+    final canonicalNew = newName.trim();
+
+    // 1. Rename in global layers list
+    final globalIndex = layers.indexWhere((l) => l['title'].toString().toLowerCase() == canonicalOld.toLowerCase());
+    if (globalIndex != -1) {
+      layers[globalIndex]['title'] = canonicalNew;
+    }
+
+    // 2. Rename in all map layers list
+    for (var contextKey in mapLayers.keys) {
+      final mapLayersList = mapLayers[contextKey]!;
+      final mapIndex = mapLayersList.indexWhere((l) => l['title'].toString().toLowerCase() == canonicalOld.toLowerCase());
+      if (mapIndex != -1) {
+        mapLayersList[mapIndex]['title'] = canonicalNew;
+      }
+    }
+
+    // 3. Rename keys in mapLayerObjects
+    final keysToUpdate = mapLayerObjects.keys.toList();
+    for (var key in keysToUpdate) {
+      if (key == canonicalOld) {
+        mapLayerObjects[canonicalNew] = mapLayerObjects[key]!;
+        mapLayerObjects.remove(key);
+      } else if (key.endsWith('_$canonicalOld')) {
+        final prefix = key.substring(0, key.length - canonicalOld.length - 1);
+        final newKey = '${prefix}_$canonicalNew';
+        mapLayerObjects[newKey] = mapLayerObjects[key]!;
+        mapLayerObjects.remove(key);
+      }
+    }
+
+    // 4. Rename in activeMapLayer
+    final activeKeys = activeMapLayer.keys.toList();
+    for (var key in activeKeys) {
+      if (activeMapLayer[key] != null && activeMapLayer[key]!.toLowerCase() == canonicalOld.toLowerCase()) {
+        activeMapLayer[key] = canonicalNew;
+      }
+    }
+  }
+
   // --- MÉTODOS DE APOYO PARA SINCRONIZACIÓN ---
 
   static bool _containsObject(
