@@ -3,6 +3,8 @@ import '../theme/design_system.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdfx/pdfx.dart';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' as io;
 
 class AddMapOverlay extends StatelessWidget {
   final Function(String name) onMapProcessingStarted;
@@ -55,9 +57,18 @@ class AddMapOverlay extends StatelessWidget {
                 withData: true,
               );
 
-              if (result != null && result.files.single.bytes != null) {
-                final rawBytes = result.files.single.bytes!;
-                if (rawBytes.isEmpty) return;
+              if (result != null) {
+                Uint8List? rawBytes;
+                if (kIsWeb) {
+                  rawBytes = result.files.single.bytes;
+                } else {
+                  final path = result.files.single.path;
+                  if (path != null) {
+                    rawBytes = await io.File(path).readAsBytes();
+                  }
+                }
+
+                if (rawBytes == null || rawBytes.isEmpty) return;
 
                 String fileName = result.files.single.name;
 

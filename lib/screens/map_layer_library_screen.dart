@@ -428,6 +428,9 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                                         final targetTitle = layer['title'];
                                         final realLayers = LayerStore.getLayers(widget.mapTitle);
                                         realLayers.removeWhere((l) => l['title'] == targetTitle);
+                                        if (LayerStore.activeMapLayer[widget.mapTitle] == targetTitle) {
+                                          LayerStore.activeMapLayer[widget.mapTitle] = null;
+                                        }
                                       });
                                       Navigator.pop(context);
                                     },

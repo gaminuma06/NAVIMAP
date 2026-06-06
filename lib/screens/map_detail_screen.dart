@@ -188,25 +188,20 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
     String? activeLayer = LayerStore.activeMapLayer[_mapTitle];
     if (activeLayer == null) {
-      final existingLayers = LayerStore.getLayers(_mapTitle);
-      if (existingLayers.isNotEmpty) {
-        activeLayer = existingLayers.first['title'];
-        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
-      } else {
-        int i = 1;
-        String candidate = 'Capa $i';
-        while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
-          i++;
-          candidate = 'Capa $i';
-        }
-        activeLayer = candidate;
-        LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
-        existingLayers.add({'title': activeLayer, 'objects': 0});
-        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      int i = 1;
+      String candidate = 'Capa $i';
+      while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+        i++;
+        candidate = 'Capa $i';
       }
+      activeLayer = candidate;
+      LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
+      final existingLayers = LayerStore.getLayers(_mapTitle);
+      existingLayers.add({'title': activeLayer, 'objects': 0});
+      LayerStore.activeMapLayer[_mapTitle] = activeLayer;
     }
 
-    final objects = LayerStore.getObjects(activeLayer!, mapContext: _mapTitle);
+    final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
     final linesCount = objects.where((obj) => obj['type'] == GeoObjectType.line).length;
     final defaultLineName = 'Línea ${linesCount + 1}';
 
@@ -323,25 +318,20 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
     String? activeLayer = LayerStore.activeMapLayer[_mapTitle];
     if (activeLayer == null) {
-      final existingLayers = LayerStore.getLayers(_mapTitle);
-      if (existingLayers.isNotEmpty) {
-        activeLayer = existingLayers.first['title'];
-        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
-      } else {
-        int i = 1;
-        String candidate = 'Capa $i';
-        while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
-          i++;
-          candidate = 'Capa $i';
-        }
-        activeLayer = candidate;
-        LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
-        existingLayers.add({'title': activeLayer, 'objects': 0});
-        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      int i = 1;
+      String candidate = 'Capa $i';
+      while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+        i++;
+        candidate = 'Capa $i';
       }
+      activeLayer = candidate;
+      LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
+      final existingLayers = LayerStore.getLayers(_mapTitle);
+      existingLayers.add({'title': activeLayer, 'objects': 0});
+      LayerStore.activeMapLayer[_mapTitle] = activeLayer;
     }
 
-    final objects = LayerStore.getObjects(activeLayer!, mapContext: _mapTitle);
+    final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
     final polygonsCount = objects.where((obj) => obj['type'] == GeoObjectType.polygon).length;
     final defaultPolygonName = 'Polígono ${polygonsCount + 1}';
 
@@ -1042,27 +1032,21 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
 
     String? activeLayer = LayerStore.activeMapLayer[_mapTitle];
     if (activeLayer == null) {
-      // Buscar si ya tiene capas vinculadas
-      final existingLayers = LayerStore.getLayers(_mapTitle);
-      if (existingLayers.isNotEmpty) {
-        activeLayer = existingLayers.first['title'];
-        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
-      } else {
-        // Buscar un nombre único como "Capa 1", "Capa 2", etc. a nivel global
-        int i = 1;
-        String candidate = 'Capa $i';
-        while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
-          i++;
-          candidate = 'Capa $i';
-        }
-        activeLayer = candidate;
-        LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
-        existingLayers.add({'title': activeLayer, 'objects': 0});
-        LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+      // Buscar un nombre único como "Capa 1", "Capa 2", etc. a nivel global
+      int i = 1;
+      String candidate = 'Capa $i';
+      while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+        i++;
+        candidate = 'Capa $i';
       }
+      activeLayer = candidate;
+      LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
+      final existingLayers = LayerStore.getLayers(_mapTitle);
+      existingLayers.add({'title': activeLayer, 'objects': 0});
+      LayerStore.activeMapLayer[_mapTitle] = activeLayer;
     }
 
-    final objects = LayerStore.getObjects(activeLayer!, mapContext: _mapTitle);
+    final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
     final pointsCount = objects.where((obj) => obj['type'] == GeoObjectType.point).length;
     final defaultPointName = 'Punto ${pointsCount + 1}';
 
