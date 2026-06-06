@@ -119,19 +119,20 @@ class ObjectListItem extends StatelessWidget {
                     ],
                   ),
                 ),
-                const PopupMenuItem(
-                  value: 'duplicate',
-                  child: Row(
-                    children: [
-                      Icon(Icons.copy, size: 18, color: Colors.white70),
-                      SizedBox(width: 12),
-                      Text(
-                        'Duplicar',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                    ],
+                if (onDuplicate != null)
+                  const PopupMenuItem(
+                    value: 'duplicate',
+                    child: Row(
+                      children: [
+                        Icon(Icons.copy, size: 18, color: Colors.white70),
+                        SizedBox(width: 12),
+                        Text(
+                          'Duplicar',
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 if (onRename != null)
                   const PopupMenuItem(
                     value: 'rename',
@@ -150,23 +151,24 @@ class ObjectListItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                const PopupMenuItem(
-                  value: 'move',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.drive_file_move_outlined,
-                        size: 18,
-                        color: Colors.white70,
-                      ),
-                      SizedBox(width: 12),
-                      Text(
-                        'Mover a otra capa',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                    ],
+                if (onMoveToLayer != null)
+                  const PopupMenuItem(
+                    value: 'move',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.drive_file_move_outlined,
+                          size: 18,
+                          color: Colors.white70,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Mover a otra capa',
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 if (onDelete != null) ...[
                   const PopupMenuDivider(),
                   const PopupMenuItem(

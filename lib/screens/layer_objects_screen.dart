@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dotted_border/dotted_border.dart';
 import '../theme/design_system.dart';
 import '../widgets/object_list_item.dart';
+import '../widgets/export_layer_dialog.dart';
 import '../services/layer_store.dart';
 import '../services/georeference_service.dart';
 import 'object_attributes_screen.dart';
@@ -308,6 +309,14 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
     );
   }
 
+  void _exportObject(Map<String, dynamic> obj) {
+    ExportLayerDialog.show(
+      context,
+      layerName: obj['name'],
+      objects: [obj],
+    );
+  }
+
   void _showUpdateSyncDialog() {
     showDialog(
       context: context,
@@ -478,9 +487,9 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
                             });
                           },
                           onDelete: () => _deleteObject(index),
-                          onDuplicate: () => _duplicateObject(index),
-                          onMoveToLayer: () => _showMoveDialog(index),
-                          onExport: () {},
+                          onDuplicate: widget.mapContext != null ? () => _duplicateObject(index) : null,
+                          onMoveToLayer: widget.mapContext != null ? () => _showMoveDialog(index) : null,
+                          onExport: () => _exportObject(obj),
                           onRename: widget.mapContext != null ? () => _renameObject(index) : null,
                         );
                       },
