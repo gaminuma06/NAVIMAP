@@ -1,58 +1,113 @@
 # NAVIMAP 🛰️📐
+### Sistema de Información Geográfica (GIS) Avanzado y Multiplataforma en Flutter
 
-**NAVIMAP** es una solución GIS (Sistema de Información Geográfica) de vanguardia desarrollada en Flutter, diseñada específicamente para profesionales que requieren una gestión táctica, precisa y redundante de datos geográficos en tiempo real.
-
-## 🚀 Innovaciones y Capacidades Tácticas
-
-### 🔄 Motor de Sincronización Bi-direccional y Borrado Cruzado
-NAVIMAP integra una arquitectura de datos "Shadow Sync" que garantiza la integridad total de la información:
-* **Respaldo Maestro Inteligente**: El Menú Capa Principal actúa como una caja fuerte global. Cualquier objeto creado o modificado en un mapa se replica instantáneamente en el respaldo global.
-* **Borrado Cruzado Opcional**: Al eliminar un objeto, el sistema ofrece una casilla de confirmación interactiva para decidir si la eliminación debe ser local o propagarse de forma cruzada (eliminando del menú global o de todos los mapas vinculados).
-* **Sincronización Proactiva (Botón de Actualización)**: Opción rápida para calcular la unión de objetos sin duplicados entre el mapa y la biblioteca global, alineando ambas listas de forma inmediata.
-* **Consistencia Case-Insensitive**: Resolución automática mediante nombres canónicos para evitar discrepancias en la sincronización causadas por diferencias de mayúsculas/minúsculas.
-
-### 🎨 Edición de Atributos y Colores Dinámicos
-* **Ventana de Atributos Detallados**: Acceso directo al tocar cualquier objeto para modificar su nombre y coordenadas (mediante campos individuales de latitud y longitud).
-* **Colores Tácticos del Pin**: Selector rápido de 6 colores (Rojo, Azul, Verde, Amarillo, Naranja, Morado) que actualiza dinámicamente tanto el marcador en el mapa como el icono representativo en la tarjeta del listado.
-* **Fechas de Creación e Historial de Edición**: Fecha automática e inmutable que se actualiza únicamente si el usuario realiza modificaciones a las coordenadas del objeto.
-
-### 📚 Gestión Avanzada de Bibliotecas y Capa Activa
-* **Destacado de Capa Activa**: La capa actualmente activa en el mapa se resalta visualmente con un contorno verde y el texto de estado "Capa activa", mientras que las inactivas ocultan sus subtítulos para una interfaz más despejada.
-* **Reordenamiento Dinámico**: La capa seleccionada como activa se sitúa automáticamente al principio de la lista de capas para agilizar el acceso operativo.
-* **Activación desde Menú de Opciones**: Acceso directo para activar capas directamente desde su menú contextual de tres puntos, evitando pasos adicionales.
-
-
-### 🎯 Interfaz de Precisión Quirúrgica
-* **Mira de Precisión**: Retícula central permanente para la captura exacta de coordenadas y alineación de activos sobre el terreno.
-* **UI de Alto Contraste**: Tema oscuro (Dark Mode) optimizado para operaciones en campo con luz solar intensa o baja luminosidad.
-* **Estados Vacíos Profesionales**: Implementación de `DottedBorder` para guiar al usuario en la carga de datos, eliminando la ambigüedad visual.
-
-### 🛡️ Blindaje y Seguridad de Datos
-* **Diálogos de Confirmación**: Sistema de verificación triple para la eliminación de capas, objetos y mapas, asegurando que ninguna acción crítica sea accidental.
-* **Guardia de Duplicados**: Algoritmo inteligente que evita la repetición de objetos durante los procesos de sincronización masiva.
-
-## 🛠️ Stack Tecnológico
-* **Core**: Flutter / Dart.
-* **Visualización**: `pdfx` para renderizado de mapas PDF de alta fidelidad.
-* **Motor de Datos**: `LayerStore` - Motor customizado para persistencia reactiva y sincronización bi-direccional.
-* **Estética**: Design System personalizado con tokens de diseño premium.
-
-## ⚙️ Instalación y Despliegue
-
-1. **Prerrequisitos**: Flutter SDK instalado y entorno Chrome para visualización web.
-2. **Setup**:
-   ```powershell
-   git clone https://github.com/gaminuma06/NAVIMAP.git
-   cd NAVIMAP
-   flutter pub get
-   flutter run -d chrome
-   ```
-
-## 🏗️ Estructura de Misión
-* `lib/services/layer_store.dart`: Corazón del sistema de sincronización y respaldo.
-* `lib/screens/map_detail_screen.dart`: Visor cartográfico con retícula de precisión.
-* `lib/screens/map_layer_library_screen.dart`: Gestión de capas locales e importación masiva.
-* `lib/theme/design_system.dart`: Definición de la identidad visual táctica.
+**NAVIMAP** es una solución cartográfica y GIS (Sistema de Información Geográfica) de alto rendimiento desarrollada en Flutter. Está diseñada para la visualización interactiva, calibración de precisión y gestión táctica de datos geográficos sobre capas satelitales y planos en formato GeoPDF. La aplicación implementa una arquitectura desacoplada y un motor de sincronización de estado reactivo y bidireccional especialmente optimizado para operar sin latencia en entornos de campo e industriales.
 
 ---
-**NAVIMAP** - Precisión sin límites para el análisis geográfico profesional. 🌎🛰️
+
+## 🏗️ Arquitectura del Sistema y Diseño Técnico
+
+El proyecto sigue principios de diseño de software empresarial, garantizando mantenibilidad, separación de responsabilidades y alto rendimiento en plataformas **Web** y **Escritorio (Windows)**.
+
+```mermaid
+graph TD
+    UI[Interfaz de Usuario: Flutter Screens] -->|Acciones del Usuario| LS[LayerStore: Gestor de Estado Custom]
+    UI -->|Renderizado de Mapas| FLM[FlutterMap Engine]
+    LS -->|Sincronización en Memoria| MO[Almacenamiento de Objetos Geo]
+    GS[GeoreferenceService: Proyecciones] -->|Calibración y Conversión| FLM
+    DS[MapDataService / GeoDataService] -->|Carga de Archivos E/S| UI
+```
+
+### 1. Motor de Sincronización Reactiva y Respaldo ("Shadow Sync")
+En el núcleo de la aplicación se encuentra `LayerStore`, un motor de estado personalizado desarrollado en Dart que gestiona la consistencia de datos geográficos (puntos, líneas y polígonos) entre múltiples contextos:
+* **Sincronización Bidireccional Cruzada**: Al añadir, renombrar o editar un elemento en un mapa específico, el cambio se propaga reactivamente hacia el respaldo global en memoria y hacia otros mapas vinculados que compartan dicha capa.
+* **Controlador de Bucles de Redundancia**: Implementa banderas de seguridad (`isSyncCall`) que detienen la propagación en cascada de actualizaciones, previniendo referencias circulares y loops de re-renderizado.
+* **Normalización Case-Insensitive**: Resolución automática mediante nombres canónicos para las claves de las capas, eliminando conflictos causados por mayúsculas, minúsculas o espacios adicionales en el ingreso del usuario.
+* **Borrado Propagado con Aislamiento**: Ofrece una experiencia flexible de eliminación. El usuario puede decidir si borrar un objeto localmente en un mapa o realizar una purga global que actualice todos los contextos activos en tiempo real.
+
+### 2. Estrategia de E/S Multiplataforma Híbrida (Web & Windows Desktop)
+La aplicación aborda de forma eficiente las diferencias del ciclo de vida de archivos entre plataformas:
+* **Plataforma Web (Edge/Chrome)**: Consume transmisiones de bytes en memoria directa (`Uint8List`) a través de la API del navegador para agilizar la carga en memoria RAM.
+* **Plataforma Escritorio (Windows)**: En lugar de cargar archivos masivos directamente en memoria (lo que causaría picos de consumo de RAM), el selector de archivos interactúa directamente con la ruta local física (`path`), realizando lecturas asíncronas por flujo utilizando flujos de lectura optimizados de `dart:io`.
+
+### 3. Procesamiento de Metadatos GeoPDF y Transformación de Coordenadas
+NAVIMAP incorpora un motor matemático capaz de analizar metadatos geoespaciales ocultos dentro de la estructura binaria de archivos PDF:
+* **Algoritmo de Extracción y Descompresión**: Escanea y descomprime flujos comprimidos mediante `FlateDecode` usando el códec `zlib` para localizar diccionarios CTM (Current Transformation Matrix), TiePoints y WKT (Well-Known Text).
+* **Georreferenciación Precisa**: Implementa proyecciones cartográficas avanzadas a través de `proj4dart`, soportando sistemas de coordenadas proyectadas como **Origen Nacional (EPSG:9377)**, **Magna-Sirgas / Origen Bogotá (EPSG:3116)**, **UTM (Universal Transverse Mercator)** y **WGS84 (EPSG:4326)**.
+* **Cálculo de Distancias y Áreas**: Módulos dedicados para el cálculo de longitud geodésica y áreas de polígonos complejos directamente en el mapa.
+
+---
+
+## 🎨 Características Destacadas y UX/UI
+
+* **Visualización de Precisión Quirúrgica**: Retícula estática central (mira combinada) para capturar coordenadas exactas basadas en la posición central de la cámara del mapa.
+* **Gestión Avanzada de Capa Activa**:
+  * Visualización intuitiva: la capa seleccionada se resalta con indicadores tácticos y se reordena al inicio de la lista para priorizar el flujo de trabajo del operador.
+  * Auto-activación inteligente: si no hay ninguna capa activa en el mapa, al crear cualquier punto, línea o polígono, la aplicación genera dinámicamente una nueva capa estructurada (ej. "Capa 1"), la activa y vincula automáticamente el objeto a esta.
+* **Personalización de Atributos de Objetos**:
+  * Modificación en caliente de nombres y coordenadas.
+  * Selector rápido de 6 colores tácticos estándar que actualizan tanto el marcador en pantalla como su icono representativo en listados y exportaciones.
+  * Registro de marcas de tiempo (`createdAt`) inmutables que solo se actualizan al alterar las coordenadas espaciales del elemento.
+
+---
+
+## 🛠️ Stack Tecnológico
+
+* **Lenguaje**: Dart 3.x
+* **Framework**: Flutter 3.x (Soporte nativo para Web y Windows Desktop)
+* **Cartografía**: `flutter_map` para el renderizado interactivo de capas de teselas y geometrías vectoriales.
+* **Renderizado PDF**: `pdfx` para rasterización de alta fidelidad y procesamiento nativo de páginas PDF.
+* **Sistemas de Proyección**: `proj4dart` para conversión matemática y proyección de puntos GPS sobre planos cartográficos.
+* **Estilo**: Sistema de Diseño personalizado (`DesignSystem`) basado en una paleta de colores oscuros de alto contraste optimizada para su legibilidad bajo luz solar directa o en campo.
+
+---
+
+## 📦 Estructura del Código Fuente
+
+El código se divide bajo una estructura modular limpia y legible:
+
+* **`/lib/services/`**: Módulos de lógica empresarial y procesamiento de datos.
+  * `layer_store.dart`: Corazón de almacenamiento, lógica de sincronización y validación de duplicados.
+  * `georeference_service.dart`: Motor de lectura binaria de GeoPDF, proyecciones geográficas y utilidades de conversión de coordenadas (DMS, DM, UTM, Origen Nacional).
+  * `map_data_service.dart`: Sistema de caché en memoria de mapas renderizados para acelerar las cargas subsiguientes del mismo archivo.
+* **`/lib/screens/`**: Componentes visuales y páginas de la aplicación.
+  * `map_detail_screen.dart`: Pantalla cartográfica interactiva para mapas PDF con herramientas de trazado y retícula.
+  * `satellite_view_screen.dart`: Vista de satélite híbrida con soporte de GPS y colocación de marcadores en tiempo real.
+  * `map_layer_library_screen.dart`: Gestor y biblioteca de capas del mapa con opciones de exportación y eliminación con confirmación de estado.
+* **`/lib/widgets/`**: Componentes y diálogos reutilizables de UI (tarjetas, botones tácticos, diálogos de confirmación, etc.).
+
+---
+
+## ⚙️ Configuración y Ejecución del Proyecto
+
+1. **Requisitos previos**:
+   * Tener instalado el SDK de Flutter (versión 3.22 o superior recomendada).
+   * Habilitar el soporte para la plataforma deseada (`flutter config --enable-windows-desktop` o `flutter config --enable-web`).
+
+2. **Instalación de Dependencias**:
+   ```bash
+   flutter pub get
+   ```
+
+3. **Ejecución en Modo Debug**:
+   * **Para Windows Desktop**:
+     ```bash
+     flutter run -d windows
+     ```
+   * **Para Web (Navegador Chrome/Edge)**:
+     ```bash
+     flutter run -d chrome
+     ```
+
+4. **Compilación para Producción (Release)**:
+   * **Windows**:
+     ```bash
+     flutter build windows
+     ```
+   * **Web**:
+     ```bash
+     flutter build web --release
+     ```
+
+---
+**NAVIMAP** — Ingeniería de precisión y rendimiento GIS para el análisis de campo profesional. 🌎🛰️
