@@ -160,6 +160,100 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
     );
   }
 
+  void _renameObject(int index) {
+    final originalObject = _filteredObjects[index];
+    final controller = TextEditingController(text: originalObject['name']);
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: DesignSystem.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.edit_outlined, color: DesignSystem.primary),
+              SizedBox(width: 12),
+              Text(
+                'Renombrar Objeto',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ingresa el nuevo nombre para "${originalObject['name']}":',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Nombre del objeto',
+                  errorText: errorText,
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
+                  ),
+                ),
+                onChanged: (value) {
+                  if (errorText != null) setDialogState(() => errorText = null);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCELAR'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignSystem.primary,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () {
+                final newName = controller.text.trim();
+                if (newName.isEmpty) return;
+                if (newName == originalObject['name']) {
+                  Navigator.pop(context);
+                  return;
+                }
+                
+                if (_allObjects.any((obj) => obj['name'].toString().toLowerCase() == newName.toLowerCase())) {
+                  setDialogState(() => errorText = 'Ya existe un objeto con este nombre');
+                  return;
+                }
+
+                setState(() {
+                  final updatedObject = Map<String, dynamic>.from(originalObject);
+                  updatedObject['name'] = newName;
+                  LayerStore.updateObject(
+                    widget.layerName,
+                    originalObject,
+                    updatedObject,
+                    mapContext: widget.mapContext,
+                  );
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('RENOMBRAR'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showMoveDialog(int index) {
     final objectToMove = _filteredObjects[index];
     final realIndex = _allObjects.indexOf(objectToMove);
@@ -387,6 +481,7 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
                           onDuplicate: () => _duplicateObject(index),
                           onMoveToLayer: () => _showMoveDialog(index),
                           onExport: () {},
+                          onRename: widget.mapContext != null ? () => _renameObject(index) : null,
                         );
                       },
                     ),

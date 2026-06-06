@@ -13,6 +13,7 @@ class ObjectListItem extends StatelessWidget {
   final VoidCallback? onExport;
   final VoidCallback? onMoveToLayer;
   final Color? color;
+  final VoidCallback? onRename;
 
   const ObjectListItem({
     super.key,
@@ -25,6 +26,7 @@ class ObjectListItem extends StatelessWidget {
     this.onExport,
     this.onMoveToLayer,
     this.color,
+    this.onRename,
   });
 
   @override
@@ -88,6 +90,9 @@ class ObjectListItem extends StatelessWidget {
                   case 'duplicate':
                     onDuplicate?.call();
                     break;
+                  case 'rename':
+                    onRename?.call();
+                    break;
                   case 'move':
                     onMoveToLayer?.call();
                     break;
@@ -127,6 +132,24 @@ class ObjectListItem extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onRename != null)
+                  const PopupMenuItem(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: Colors.white70,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Renombrar',
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
                 const PopupMenuItem(
                   value: 'move',
                   child: Row(
