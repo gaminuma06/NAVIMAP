@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:typed_data';
 import 'package:dotted_border/dotted_border.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import '../theme/design_system.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/map_list_item.dart';
@@ -121,6 +123,82 @@ class _LibraryScreenState extends State<LibraryScreen> {
         map['status'] = isInside
             ? MapSpatialStatus.within
             : MapSpatialStatus.outside;
+      }
+    }
+  }
+
+  Future<void> _downloadMap(String title) async {
+    final bytes = MapStore.bytesCache[title];
+    if (bytes == null || bytes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudieron obtener los datos del mapa.'),
+          backgroundColor: DesignSystem.error,
+        ),
+      );
+      return;
+    }
+
+    final name = title.toLowerCase().endsWith('.pdf') ? title : '$title.pdf';
+    try {
+      final String? savedPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar Mapa',
+        fileName: name,
+        bytes: bytes,
+      );
+
+      if (mounted && savedPath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Mapa guardado correctamente en: $savedPath'),
+            backgroundColor: const Color(0xFF388E3C),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar el mapa: $e'),
+            backgroundColor: DesignSystem.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareMap(String title) async {
+    final bytes = MapStore.bytesCache[title];
+    if (bytes == null || bytes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudieron obtener los datos del mapa.'),
+          backgroundColor: DesignSystem.error,
+        ),
+      );
+      return;
+    }
+
+    final name = title.toLowerCase().endsWith('.pdf') ? title : '$title.pdf';
+    try {
+      final XFile xFile = XFile.fromData(
+        bytes,
+        name: name,
+        mimeType: 'application/pdf',
+      );
+
+      await Share.shareXFiles(
+        [xFile],
+        text: 'Copia del mapa "$title" enviada desde NaviMap',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al compartir el mapa: $e'),
+            backgroundColor: DesignSystem.error,
+          ),
+        );
       }
     }
   }
@@ -258,6 +336,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                     }
                                     Navigator.pushNamed(context, '/detail');
                                   },
+                                  onDownload: () => _downloadMap(title),
+                                  onShare: () => _shareMap(title),
                                   onDelete: () {
                                     showDialog(
                                       context: context,

@@ -12,6 +12,7 @@ class MapListItem extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
+  final VoidCallback? onShare;
 
   const MapListItem({
     super.key,
@@ -21,6 +22,7 @@ class MapListItem extends StatelessWidget {
     required this.onTap,
     this.onDownload,
     this.onDelete,
+    this.onShare,
     this.thumbnailPath,
     this.thumbnailBytes,
   });
@@ -84,6 +86,7 @@ class MapListItem extends StatelessWidget {
               ),
               onSelected: (value) {
                 if (value == 'download') onDownload?.call();
+                if (value == 'share') onShare?.call();
                 if (value == 'delete') onDelete?.call();
               },
               itemBuilder: (BuildContext context) => [
@@ -99,6 +102,23 @@ class MapListItem extends StatelessWidget {
                       SizedBox(width: 12),
                       Text(
                         'Descargar mapa',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.share_outlined,
+                        color: DesignSystem.secondary,
+                        size: 20,
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Compartir',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ],
