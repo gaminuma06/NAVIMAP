@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import 'dart:math' as math;
 import '../services/user_location_service.dart';
@@ -11,6 +12,7 @@ import '../widgets/user_location_marker.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import '../services/layer_store.dart';
 import '../services/georeference_service.dart';
+import '../services/offline_map_service.dart';
 import '../widgets/object_list_item.dart'; // Para GeoObjectType
 import 'object_attributes_screen.dart'; // Para navegar a los atributos del marcador
 
@@ -53,10 +55,18 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
 
   double _dragDistance = 0.0;
   bool _isBottomSheetOpen = false;
+  OfflineTileProvider? _offlineTileProvider;
+  TileProvider? _fallbackTileProvider;
+
+  bool _isOffline = false;
+  Timer? _connectivityTimer;
 
   @override
   void initState() {
     super.initState();
+    _fallbackTileProvider = kIsWeb
+        ? WebNetworkTileProvider()
+        : CancellableNetworkTileProvider(silenceExceptions: true);
     final lastLoc = UserLocationService().lastData;
     if (lastLoc != null) {
       _currentLocation = LatLng(lastLoc.latitude, lastLoc.longitude);
@@ -72,7 +82,15 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     _currentMapZoom = _lastZoom;
 
     _initLocationTracking();
-    
+
+    OfflineMapService().getOfflineTilesPath().then((path) {
+      if (mounted) {
+        setState(() {
+          _offlineTileProvider = OfflineTileProvider(baseOfflinePath: path);
+        });
+      }
+    });
+
     // Cargar formato de coordenadas preferido
     _coordinateFormat = GeoreferenceService().getCoordinateFormat(_mapTitle);
 
@@ -87,6 +105,12 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
         });
       }
     });
+
+    // Inicializar estado offline y monitorear conectividad
+    _checkConnectivity();
+    _connectivityTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _checkConnectivity();
+    });
   }
 
   @override
@@ -94,6 +118,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     _locationSubscription?.cancel();
     _mapEventSubscription?.cancel();
     _bannerTimer?.cancel();
+    _connectivityTimer?.cancel();
+    _fallbackTileProvider?.dispose();
+    _offlineTileProvider?.dispose();
     super.dispose();
   }
 
@@ -103,6 +130,46 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
         _mapController.move(center, zoom);
       } catch (_) {}
     });
+  }
+
+  Future<void> _checkConnectivity() async {
+    final bool online = await OfflineMapService().checkInternet();
+    if (mounted) {
+      setState(() {
+        _isOffline = !online;
+      });
+      _updateZoomLimit();
+    }
+  }
+
+  void _updateZoomLimit() {
+    final service = OfflineMapService();
+    if (!_isOffline || !service.isDownloaded) {
+      return;
+    }
+
+    final center = _getSafeCenter();
+
+    if (_currentMapZoom > 4.0) {
+      if (service.minLat == null ||
+          service.maxLat == null ||
+          service.minLon == null ||
+          service.maxLon == null) {
+        return;
+      }
+      final double clampedLat = center.latitude.clamp(
+        service.minLat!,
+        service.maxLat!,
+      );
+      final double clampedLon = center.longitude.clamp(
+        service.minLon!,
+        service.maxLon!,
+      );
+
+      if (clampedLat != center.latitude || clampedLon != center.longitude) {
+        _safeMove(LatLng(clampedLat, clampedLon), _currentMapZoom);
+      }
+    }
   }
 
   void _initLocationTracking() {
@@ -150,8 +217,12 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
       final dLat = lat2 - lat1;
       final dLon = lon2 - lon1;
 
-      final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-          math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2) * math.sin(dLon / 2);
+      final a =
+          math.sin(dLat / 2) * math.sin(dLat / 2) +
+          math.cos(lat1) *
+              math.cos(lat2) *
+              math.sin(dLon / 2) *
+              math.sin(dLon / 2);
       final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
       total += r * c;
     }
@@ -171,14 +242,14 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     try {
       final firstPoint = _measuringPoints.first;
       final currentCenter = _getSafeCenter();
-      
+
       final p1 = _mapController.camera.project(firstPoint);
       final p2 = _mapController.camera.project(currentCenter);
-      
+
       final dx = p2.x - p1.x;
       final dy = p2.y - p1.y;
       final dist = math.sqrt(dx * dx + dy * dy);
-      
+
       return dist < 35.0;
     } catch (_) {
       return false;
@@ -187,22 +258,22 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
 
   double _calculatePolygonArea(List<LatLng> points) {
     if (points.length < 3) return 0.0;
-    
+
     double sumLat = 0.0;
     for (var pt in points) {
       sumLat += pt.latitude;
     }
     final double avgLat = (sumLat / points.length) * math.pi / 180.0;
-    
+
     const double r = 6371000.0;
     final List<math.Point<double>> projectedPoints = [];
-    
+
     for (var pt in points) {
       final x = r * (pt.longitude * math.pi / 180.0) * math.cos(avgLat);
       final y = r * (pt.latitude * math.pi / 180.0);
       projectedPoints.add(math.Point(x, y));
     }
-    
+
     double area = 0.0;
     int n = projectedPoints.length;
     for (int i = 0; i < n; i++) {
@@ -281,7 +352,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     if (activeLayer == null) {
       int i = 1;
       String candidate = 'Capa $i';
-      while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+      while (LayerStore.layers.any(
+        (l) => l['title'].toString().toLowerCase() == candidate.toLowerCase(),
+      )) {
         i++;
         candidate = 'Capa $i';
       }
@@ -293,7 +366,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     }
 
     final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
-    final linesCount = objects.where((obj) => obj['type'] == GeoObjectType.line).length;
+    final linesCount = objects
+        .where((obj) => obj['type'] == GeoObjectType.line)
+        .length;
     final defaultLineName = 'Línea ${linesCount + 1}';
 
     final controller = TextEditingController(text: defaultLineName);
@@ -364,21 +439,21 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
               if (lineName.isEmpty) return;
 
               setState(() {
-                LayerStore.addObject(
-                  activeLayer!,
-                  {
-                    'name': lineName,
-                    'type': GeoObjectType.line,
-                    'value': formattedLength,
-                    'points': finalPoints.map((p) => {
-                      'latitude': p.latitude,
-                      'longitude': p.longitude,
-                    }).toList(),
-                    'unit': 'm',
-                    'color': 0xFFFFA726,
-                  },
-                  mapContext: _mapTitle,
-                );
+                LayerStore.addObject(activeLayer!, {
+                  'name': lineName,
+                  'type': GeoObjectType.line,
+                  'value': formattedLength,
+                  'points': finalPoints
+                      .map(
+                        (p) => {
+                          'latitude': p.latitude,
+                          'longitude': p.longitude,
+                        },
+                      )
+                      .toList(),
+                  'unit': 'm',
+                  'color': 0xFFFFA726,
+                }, mapContext: _mapTitle);
                 _isMeasuringMode = false;
                 _measuringPoints.clear();
               });
@@ -408,7 +483,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     if (activeLayer == null) {
       int i = 1;
       String candidate = 'Capa $i';
-      while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+      while (LayerStore.layers.any(
+        (l) => l['title'].toString().toLowerCase() == candidate.toLowerCase(),
+      )) {
         i++;
         candidate = 'Capa $i';
       }
@@ -420,7 +497,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     }
 
     final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
-    final polygonsCount = objects.where((obj) => obj['type'] == GeoObjectType.polygon).length;
+    final polygonsCount = objects
+        .where((obj) => obj['type'] == GeoObjectType.polygon)
+        .length;
     final defaultPolygonName = 'Polígono ${polygonsCount + 1}';
 
     final controller = TextEditingController(text: defaultPolygonName);
@@ -491,21 +570,21 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
               if (polyName.isEmpty) return;
 
               setState(() {
-                LayerStore.addObject(
-                  activeLayer!,
-                  {
-                    'name': polyName,
-                    'type': GeoObjectType.polygon,
-                    'value': formattedArea,
-                    'points': finalPoints.map((p) => {
-                      'latitude': p.latitude,
-                      'longitude': p.longitude,
-                    }).toList(),
-                    'unit': 'm²',
-                    'color': 0xFFFFA726,
-                  },
-                  mapContext: _mapTitle,
-                );
+                LayerStore.addObject(activeLayer!, {
+                  'name': polyName,
+                  'type': GeoObjectType.polygon,
+                  'value': formattedArea,
+                  'points': finalPoints
+                      .map(
+                        (p) => {
+                          'latitude': p.latitude,
+                          'longitude': p.longitude,
+                        },
+                      )
+                      .toList(),
+                  'unit': 'm²',
+                  'color': 0xFFFFA726,
+                }, mapContext: _mapTitle);
                 _isMeasuringMode = false;
                 _measuringPoints.clear();
               });
@@ -533,7 +612,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     if (activeLayer == null) {
       int i = 1;
       String candidate = 'Capa $i';
-      while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+      while (LayerStore.layers.any(
+        (l) => l['title'].toString().toLowerCase() == candidate.toLowerCase(),
+      )) {
         i++;
         candidate = 'Capa $i';
       }
@@ -545,7 +626,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     }
 
     final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
-    final pointsCount = objects.where((obj) => obj['type'] == GeoObjectType.point).length;
+    final pointsCount = objects
+        .where((obj) => obj['type'] == GeoObjectType.point)
+        .length;
     final defaultPointName = 'Punto ${pointsCount + 1}';
 
     final controller = TextEditingController(text: defaultPointName);
@@ -592,7 +675,11 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             const SizedBox(height: 12),
             Text(
               'Coordenadas: ${lat.toStringAsFixed(6)}, ${lon.toStringAsFixed(6)}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'monospace'),
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontFamily: 'monospace',
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -616,17 +703,14 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
               if (pointName.isEmpty) return;
 
               setState(() {
-                LayerStore.addObject(
-                  activeLayer!,
-                  {
-                    'name': pointName,
-                    'type': GeoObjectType.point,
-                    'value': 'Lat: ${lat.toStringAsFixed(6)}, Lon: ${lon.toStringAsFixed(6)}',
-                    'latitude': lat,
-                    'longitude': lon,
-                  },
-                  mapContext: _mapTitle,
-                );
+                LayerStore.addObject(activeLayer!, {
+                  'name': pointName,
+                  'type': GeoObjectType.point,
+                  'value':
+                      'Lat: ${lat.toStringAsFixed(6)}, Lon: ${lon.toStringAsFixed(6)}',
+                  'latitude': lat,
+                  'longitude': lon,
+                }, mapContext: _mapTitle);
               });
 
               Navigator.pop(context);
@@ -649,11 +733,13 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
 
     final List<Map<String, dynamic>> closePins = [];
-    
+
     try {
       final clickedLat = clickedObj['latitude'] as double;
       final clickedLon = clickedObj['longitude'] as double;
-      final clickedPos = _mapController.camera.project(LatLng(clickedLat, clickedLon));
+      final clickedPos = _mapController.camera.project(
+        LatLng(clickedLat, clickedLon),
+      );
 
       for (var obj in objects) {
         if (obj['type'] == GeoObjectType.point &&
@@ -662,11 +748,11 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           final lat = obj['latitude'] as double;
           final lon = obj['longitude'] as double;
           final pos = _mapController.camera.project(LatLng(lat, lon));
-          
+
           final dx = clickedPos.x - pos.x;
           final dy = clickedPos.y - pos.y;
           final dist = math.sqrt(dx * dx + dy * dy);
-          
+
           if (dist < 40.0) {
             closePins.add(obj);
           }
@@ -675,7 +761,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     } catch (e) {
       closePins.add(clickedObj);
     }
-    
+
     setState(() {
       _selectedPins.clear();
       _selectedPins.addAll(closePins);
@@ -708,11 +794,11 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           final lat = obj['latitude'] as double;
           final lon = obj['longitude'] as double;
           final pos = _mapController.camera.project(LatLng(lat, lon));
-          
+
           final dx = tapPos.x - pos.x;
           final dy = tapPos.y - pos.y;
           final dist = math.sqrt(dx * dx + dy * dy);
-          
+
           if (dist < 40.0) {
             closeObjects.add(obj);
           }
@@ -721,29 +807,31 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           for (int i = 0; i < pts.length - 1; i++) {
             final pt1 = pts[i];
             final pt2 = pts[i + 1];
-            if (pt1['latitude'] == null || pt1['longitude'] == null ||
-                pt2['latitude'] == null || pt2['longitude'] == null) continue;
-            
-            final p1 = _mapController.camera.project(LatLng(
-              pt1['latitude'] as double,
-              pt1['longitude'] as double,
-            ));
-            final p2 = _mapController.camera.project(LatLng(
-              pt2['latitude'] as double,
-              pt2['longitude'] as double,
-            ));
+            if (pt1['latitude'] == null ||
+                pt1['longitude'] == null ||
+                pt2['latitude'] == null ||
+                pt2['longitude'] == null)
+              continue;
+
+            final p1 = _mapController.camera.project(
+              LatLng(pt1['latitude'] as double, pt1['longitude'] as double),
+            );
+            final p2 = _mapController.camera.project(
+              LatLng(pt2['latitude'] as double, pt2['longitude'] as double),
+            );
 
             final double dx = p2.x - p1.x;
             final double dy = p2.y - p1.y;
             final double lenSq = dx * dx + dy * dy;
-            
+
             double dist;
             if (lenSq == 0) {
               final double sx = tapPos.x - p1.x;
               final double sy = tapPos.y - p1.y;
               dist = math.sqrt(sx * sx + sy * sy);
             } else {
-              final double t = ((tapPos.x - p1.x) * dx + (tapPos.y - p1.y) * dy) / lenSq;
+              final double t =
+                  ((tapPos.x - p1.x) * dx + (tapPos.y - p1.y) * dy) / lenSq;
               final double tClamped = t.clamp(0.0, 1.0);
               final double cx = p1.x + tClamped * dx;
               final double cy = p1.y + tClamped * dy;
@@ -760,7 +848,8 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
               break;
             }
           }
-        } else if (obj['type'] == GeoObjectType.polygon && obj['points'] != null) {
+        } else if (obj['type'] == GeoObjectType.polygon &&
+            obj['points'] != null) {
           final pts = obj['points'] as List;
           final List<math.Point<double>> projectedVertices = [];
           bool isNearBoundary = false;
@@ -768,10 +857,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           for (int i = 0; i < pts.length; i++) {
             final pt = pts[i];
             if (pt['latitude'] == null || pt['longitude'] == null) continue;
-            final pNode = _mapController.camera.project(LatLng(
-              pt['latitude'] as double,
-              pt['longitude'] as double,
-            ));
+            final pNode = _mapController.camera.project(
+              LatLng(pt['latitude'] as double, pt['longitude'] as double),
+            );
             projectedVertices.add(math.Point(pNode.x, pNode.y));
           }
 
@@ -782,14 +870,15 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             final double dx = p2.x - p1.x;
             final double dy = p2.y - p1.y;
             final double lenSq = dx * dx + dy * dy;
-            
+
             double dist;
             if (lenSq == 0) {
               final double sx = tapPos.x - p1.x;
               final double sy = tapPos.y - p1.y;
               dist = math.sqrt(sx * sx + sy * sy);
             } else {
-              final double t = ((tapPos.x - p1.x) * dx + (tapPos.y - p1.y) * dy) / lenSq;
+              final double t =
+                  ((tapPos.x - p1.x) * dx + (tapPos.y - p1.y) * dy) / lenSq;
               final double tClamped = t.clamp(0.0, 1.0);
               final double cx = p1.x + tClamped * dx;
               final double cy = p1.y + tClamped * dy;
@@ -804,7 +893,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             }
           }
 
-          final isInside = _isPointInPolygon(math.Point(tapPos.x, tapPos.y), projectedVertices);
+          final isInside = _isPointInPolygon(
+            math.Point(tapPos.x, tapPos.y),
+            projectedVertices,
+          );
 
           if (isInside || isNearBoundary) {
             if (!closeObjects.contains(obj)) {
@@ -821,19 +913,29 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     setState(() {
       _selectedPins.clear();
       _selectedPins.addAll(closeObjects);
-      _selectedLineTapPoint = (closeObjects.isNotEmpty &&
-              (closeObjects.first['type'] == GeoObjectType.line || closeObjects.first['type'] == GeoObjectType.polygon))
+      _selectedLineTapPoint =
+          (closeObjects.isNotEmpty &&
+              (closeObjects.first['type'] == GeoObjectType.line ||
+                  closeObjects.first['type'] == GeoObjectType.polygon))
           ? lineTapPoint
           : null;
     });
   }
 
-  bool _isPointInPolygon(math.Point<double> p, List<math.Point<double>> vertices) {
+  bool _isPointInPolygon(
+    math.Point<double> p,
+    List<math.Point<double>> vertices,
+  ) {
     bool isInside = false;
     int j = vertices.length - 1;
     for (int i = 0; i < vertices.length; i++) {
-      if ((vertices[i].y < p.y && vertices[j].y >= p.y || vertices[j].y < p.y && vertices[i].y >= p.y) &&
-          (vertices[i].x + (p.y - vertices[i].y) / (vertices[j].y - vertices[i].y) * (vertices[j].x - vertices[i].x) < p.x)) {
+      if ((vertices[i].y < p.y && vertices[j].y >= p.y ||
+              vertices[j].y < p.y && vertices[i].y >= p.y) &&
+          (vertices[i].x +
+                  (p.y - vertices[i].y) /
+                      (vertices[j].y - vertices[i].y) *
+                      (vertices[j].x - vertices[i].x) <
+              p.x)) {
         isInside = !isInside;
       }
       j = i;
@@ -844,7 +946,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   void _openPinAttributes(Map<String, dynamic> pinObj) {
     final activeLayer = LayerStore.activeMapLayer[_mapTitle];
     if (activeLayer == null) return;
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -891,7 +993,11 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
       final lat = pin['latitude'] as double?;
       final lon = pin['longitude'] as double?;
       if (lat != null && lon != null) {
-        return GeoreferenceService().formatCoordinates(lat, lon, _coordinateFormat);
+        return GeoreferenceService().formatCoordinates(
+          lat,
+          lon,
+          _coordinateFormat,
+        );
       }
     }
     return pin['value'] as String? ?? '';
@@ -1004,7 +1110,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
         final lat = obj['latitude'] as double;
         final lon = obj['longitude'] as double;
         final colorValue = obj['color'] as int? ?? 0xFFFF1744;
-        
+
         final isSelected = _selectedPins.contains(obj);
         final currentSize = isSelected ? markerSize * 1.35 : markerSize;
 
@@ -1080,24 +1186,33 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                             onTap: () => _openPinAttributes(pin),
                             child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
                               child: Row(
                                 children: [
                                   Icon(
                                     pin['type'] == GeoObjectType.point
                                         ? Icons.location_on
-                                        : (pin['type'] == GeoObjectType.line ? Icons.timeline : Icons.pentagon_outlined),
-                                    color: Color(pin['color'] as int? ?? 0xFFFF1744),
+                                        : (pin['type'] == GeoObjectType.line
+                                              ? Icons.timeline
+                                              : Icons.pentagon_outlined),
+                                    color: Color(
+                                      pin['color'] as int? ?? 0xFFFF1744,
+                                    ),
                                     size: 18,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          pin['name'] as String? ?? 'Sin nombre',
+                                          pin['name'] as String? ??
+                                              'Sin nombre',
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,
@@ -1194,11 +1309,36 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                       ),
                     ),
                     const Divider(color: Colors.white10),
-                    _buildBottomSheetItem(context, 'DD', 'Grados Decimales (DD)', setModalState),
-                    _buildBottomSheetItem(context, 'DM', 'Grados y Minutos (DM)', setModalState),
-                    _buildBottomSheetItem(context, 'DMS', 'Grados, Minutos y Segundos (DMS)', setModalState),
-                    _buildBottomSheetItem(context, 'UTM', 'UTM (WGS84)', setModalState),
-                    _buildBottomSheetItem(context, 'ON', 'Origen Nacional (EPSG:9377)', setModalState),
+                    _buildBottomSheetItem(
+                      context,
+                      'DD',
+                      'Grados Decimales (DD)',
+                      setModalState,
+                    ),
+                    _buildBottomSheetItem(
+                      context,
+                      'DM',
+                      'Grados y Minutos (DM)',
+                      setModalState,
+                    ),
+                    _buildBottomSheetItem(
+                      context,
+                      'DMS',
+                      'Grados, Minutos y Segundos (DMS)',
+                      setModalState,
+                    ),
+                    _buildBottomSheetItem(
+                      context,
+                      'UTM',
+                      'UTM (WGS84)',
+                      setModalState,
+                    ),
+                    _buildBottomSheetItem(
+                      context,
+                      'ON',
+                      'Origen Nacional (EPSG:9377)',
+                      setModalState,
+                    ),
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -1212,7 +1352,12 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     });
   }
 
-  Widget _buildBottomSheetItem(BuildContext context, String value, String label, StateSetter setModalState) {
+  Widget _buildBottomSheetItem(
+    BuildContext context,
+    String value,
+    String label,
+    StateSetter setModalState,
+  ) {
     final bool isSelected = _coordinateFormat == value;
     return InkWell(
       onTap: () {
@@ -1288,15 +1433,20 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   @override
   Widget build(BuildContext context) {
     Map<String, double>? centerLatLon;
-    final activeCenter = _currentMapCenter ?? (() {
-      try {
-        return _mapController.camera.center;
-      } catch (_) {
-        return null;
-      }
-    })();
+    final activeCenter =
+        _currentMapCenter ??
+        (() {
+          try {
+            return _mapController.camera.center;
+          } catch (_) {
+            return null;
+          }
+        })();
     if (activeCenter != null) {
-      centerLatLon = {'lat': activeCenter.latitude, 'lon': activeCenter.longitude};
+      centerLatLon = {
+        'lat': activeCenter.latitude,
+        'lon': activeCenter.longitude,
+      };
     }
 
     return Scaffold(
@@ -1306,8 +1456,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: _lastLocation ?? const LatLng(8.623083, -73.732583),
+              initialCenter:
+                  _lastLocation ?? const LatLng(8.623083, -73.732583),
               initialZoom: _lastZoom,
+              maxZoom: 22.0,
               onTap: (tapPosition, point) {
                 _handleMapTap(point);
               },
@@ -1318,20 +1470,20 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                   _lastLocation = camera.center;
                   _lastZoom = camera.zoom;
                 });
+                _updateZoomLimit();
               },
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+                urlTemplate:
+                    'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
                 userAgentPackageName: 'com.navimap.app',
-                tileProvider: CancellableNetworkTileProvider(silenceExceptions: true),
+                tileProvider: _offlineTileProvider ?? _fallbackTileProvider!,
+                maxZoom: 22.0,
+                maxNativeZoom: _isOffline ? 16 : 22,
               ),
-              PolygonLayer(
-                polygons: _getPolygons(),
-              ),
-              PolylineLayer(
-                polylines: _getPolylines(),
-              ),
+              PolygonLayer(polygons: _getPolygons()),
+              PolylineLayer(polylines: _getPolylines()),
               MarkerLayer(
                 markers: _currentLocation.latitude != 0
                     ? [
@@ -1346,12 +1498,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                       ]
                     : [],
               ),
-              MarkerLayer(
-                markers: _getPinMarkers(),
-              ),
+              MarkerLayer(markers: _getPinMarkers()),
             ],
           ),
-          
+
           // --- RETÍCULA / MIRILLA CENTRAL ESTÁTICA ---
           Center(
             child: SizedBox(
@@ -1411,7 +1561,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
               child: SafeArea(
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: _bannerColor,
                       borderRadius: BorderRadius.circular(20),
@@ -1452,7 +1605,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                       onTap: _toggleMeasuringMode,
                       child: Icon(
                         Icons.straighten,
-                        color: _isMeasuringMode ? Colors.redAccent : DesignSystem.primary,
+                        color: _isMeasuringMode
+                            ? Colors.redAccent
+                            : DesignSystem.primary,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -1462,11 +1617,16 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: DesignSystem.primary,
-                              side: const BorderSide(color: DesignSystem.primary),
+                              side: const BorderSide(
+                                color: DesignSystem.primary,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                             ),
                             onPressed: _addMeasuringPoint,
                             icon: const Icon(Icons.add, size: 16),
@@ -1474,7 +1634,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                               _measuringPoints.isEmpty
                                   ? 'Añadir inicio'
                                   : 'Añadir intersección (${_formatLength(_calculateGeodesicLength([..._measuringPoints, _getSafeCenter()]))})',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -1521,18 +1684,22 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                             }
                           },
                           onVerticalDragEnd: (details) {
-                            if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
+                            if (details.primaryVelocity != null &&
+                                details.primaryVelocity! < -100) {
                               _showCoordinateFormatSelector(context);
                             }
                           },
                           onLongPress: () async {
                             if (centerLatLon != null) {
-                              final String coordText = GeoreferenceService().formatCoordinates(
-                                centerLatLon['lat']!,
-                                centerLatLon['lon']!,
-                                _coordinateFormat,
+                              final String coordText = GeoreferenceService()
+                                  .formatCoordinates(
+                                    centerLatLon['lat']!,
+                                    centerLatLon['lon']!,
+                                    _coordinateFormat,
+                                  );
+                              await Clipboard.setData(
+                                ClipboardData(text: coordText),
                               );
-                              await Clipboard.setData(ClipboardData(text: coordText));
                               _showTopBanner(
                                 'Coordenadas copiadas al portapapeles',
                                 const Color(0xFF388E3C),
@@ -1540,7 +1707,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                             }
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFF1F1F1F),
                               borderRadius: BorderRadius.circular(20),

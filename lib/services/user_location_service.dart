@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_compass/flutter_compass.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class UserLocationData {
   final double latitude;
@@ -107,16 +108,21 @@ class UserLocationService {
             accuracy: LocationAccuracy.high,
             distanceFilter: 1,
           ),
-        ).listen((Position position) {
-          _emitLocation(
-            UserLocationData(
-              latitude: position.latitude,
-              longitude: position.longitude,
-              heading: _currentHeading,
-              accuracy: position.accuracy,
-            ),
-          );
-        });
+        ).listen(
+          (Position position) {
+            _emitLocation(
+              UserLocationData(
+                latitude: position.latitude,
+                longitude: position.longitude,
+                heading: _currentHeading,
+                accuracy: position.accuracy,
+              ),
+            );
+          },
+          onError: (error) {
+            debugPrint('Geolocator position stream error: $error');
+          },
+        );
   }
 
   void simulateLocation(double lat, double lon, {double? heading}) {
