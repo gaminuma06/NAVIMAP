@@ -1,10 +1,14 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:io';
+import 'dart:convert' show jsonEncode, jsonDecode;
 import 'package:flutter/material.dart';
 import 'package:proj4dart/proj4dart.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
 import 'package:flutter_map/flutter_map.dart' as flutter_map;
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../utils/web_storage_helper.dart';
 
 enum MapSpatialStatus { within, outside, notReferenced }
 
@@ -69,15 +73,133 @@ class GeoreferenceService {
       'EPSG:9377',
       '+proj=tmerc +lat_0=4 +lon_0=-73 +k=0.9992 +x_0=5000000 +y_0=2000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
     );
+    loadSavedCalibrations();
   }
 
   final Map<String, MapCalibration> _dynamicCalibrations = {};
   static final Map<String, String> _coordinateFormats = {};
   String debugInfo = "";
 
+  Map<String, dynamic> _calibrationToJson(MapCalibration cal) {
+    return {
+      'matrixA': cal.matrixA,
+      'matrixB': cal.matrixB,
+      'matrixC': cal.matrixC,
+      'matrixD': cal.matrixD,
+      'matrixE': cal.matrixE,
+      'matrixF': cal.matrixF,
+      'originalImageWidth': cal.originalImageWidth,
+      'originalImageHeight': cal.originalImageHeight,
+      'cropX': cal.cropX,
+      'cropY': cal.cropY,
+      'projectionIdentifier': cal.projectionIdentifier,
+      'isProjected': cal.isProjected,
+      'firstGpts': cal.firstGpts,
+      'firstLpts': cal.firstLpts,
+      'manualOffsetX': cal.manualOffsetX,
+      'manualOffsetY': cal.manualOffsetY,
+      'boundsSouth': cal.boundsSouth,
+      'boundsNorth': cal.boundsNorth,
+      'boundsWest': cal.boundsWest,
+      'boundsEast': cal.boundsEast,
+      'minLptsX': cal.minLptsX,
+      'minLptsY': cal.minLptsY,
+      'maxLptsX': cal.maxLptsX,
+      'maxLptsY': cal.maxLptsY,
+    };
+  }
+
+  MapCalibration _calibrationFromJson(Map<String, dynamic> json) {
+    return MapCalibration(
+      matrixA: json['matrixA']?.toDouble() ?? 0.0,
+      matrixB: json['matrixB']?.toDouble() ?? 0.0,
+      matrixC: json['matrixC']?.toDouble() ?? 0.0,
+      matrixD: json['matrixD']?.toDouble() ?? 0.0,
+      matrixE: json['matrixE']?.toDouble() ?? 0.0,
+      matrixF: json['matrixF']?.toDouble() ?? 0.0,
+      originalImageWidth: json['originalImageWidth']?.toDouble() ?? 0.0,
+      originalImageHeight: json['originalImageHeight']?.toDouble() ?? 0.0,
+      cropX: json['cropX']?.toDouble() ?? 0.0,
+      cropY: json['cropY']?.toDouble() ?? 0.0,
+      projectionIdentifier: json['projectionIdentifier'] as String?,
+      isProjected: json['isProjected'] as bool? ?? false,
+      firstGpts: json['firstGpts']?.toDouble() ?? 0.0,
+      firstLpts: json['firstLpts']?.toDouble() ?? 0.0,
+      manualOffsetX: json['manualOffsetX']?.toDouble() ?? 0.0,
+      manualOffsetY: json['manualOffsetY']?.toDouble() ?? 0.0,
+      boundsSouth: json['boundsSouth']?.toDouble(),
+      boundsNorth: json['boundsNorth']?.toDouble(),
+      boundsWest: json['boundsWest']?.toDouble(),
+      boundsEast: json['boundsEast']?.toDouble(),
+      minLptsX: json['minLptsX']?.toDouble(),
+      minLptsY: json['minLptsY']?.toDouble(),
+      maxLptsX: json['maxLptsX']?.toDouble(),
+      maxLptsY: json['maxLptsY']?.toDouble(),
+    );
+  }
+
+  Future<void> loadSavedCalibrations() async {
+    if (kIsWeb) {
+      try {
+        final saved = loadWebCalibration();
+        if (saved != null) {
+          final data = jsonDecode(saved) as Map<String, dynamic>;
+          data.forEach((key, value) {
+            _dynamicCalibrations[key] = _calibrationFromJson(
+              value as Map<String, dynamic>,
+            );
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading web calibrations: $e');
+      }
+      return;
+    }
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/map_calibrations_cache.json');
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        data.forEach((key, value) {
+          _dynamicCalibrations[key] = _calibrationFromJson(
+            value as Map<String, dynamic>,
+          );
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading calibrations from file: $e');
+    }
+  }
+
+  Future<void> saveCalibrations() async {
+    final Map<String, dynamic> data = {};
+    _dynamicCalibrations.forEach((key, value) {
+      data[key] = _calibrationToJson(value);
+    });
+    final serialized = jsonEncode(data);
+
+    if (kIsWeb) {
+      try {
+        saveWebCalibration(serialized);
+      } catch (_) {}
+      return;
+    }
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/map_calibrations_cache.json');
+      await file.writeAsString(serialized);
+    } catch (e) {
+      debugPrint('Error saving calibrations to file: $e');
+    }
+  }
+
   void clearCache(String mapTitle) {
     _dynamicCalibrations.remove(mapTitle);
     _coordinateFormats.remove(mapTitle);
+    saveCalibrations();
   }
 
   void setCoordinateFormat(String mapTitle, String format) {
@@ -94,6 +216,7 @@ class GeoreferenceService {
       final cal = _extractCalibrationFromPdf(bytes);
       if (cal != null) {
         _dynamicCalibrations[mapTitle] = cal;
+        await saveCalibrations();
       } else {
         debugInfo = "Sin metadatos GeoPDF";
       }
@@ -154,18 +277,38 @@ class GeoreferenceService {
       final uuMatch = RegExp(r'/UserUnit\s+(\d+\.?\d*)').firstMatch(content);
       if (uuMatch != null) userUnit = double.parse(uuMatch.group(1)!);
 
-      // Decompress FlateDecode to find hidden CTM, LGIDict, and WKT
+      // Decompress FlateDecode streams that are likely to contain georeference data
       try {
-        final streamMatches = RegExp(
-          r'<<[^>]*?/Filter\s*/FlateDecode[^>]*?>>\s*stream\r?\n(.*?)\r?\nendstream',
-          dotAll: true,
-        ).allMatches(content);
-        // Encontrados compressed streams
-        for (var match in streamMatches) {
+        final streamRegex = RegExp(
+          r'<<([^>]*?/Filter\s*/FlateDecode[^>]*?)>>\s*stream\r?\n',
+          caseSensitive: false,
+        );
+        final matches = streamRegex.allMatches(content);
+        for (var match in matches) {
           try {
-            List<int> compressed = match.group(1)!.codeUnits;
-            List<int> decompressed = zlib.decode(compressed);
-            content += "\n${String.fromCharCodes(decompressed)}";
+            final dict = match.group(1) ?? '';
+            // Only decompress streams that contain georeferencing markers
+            final hasGeoref =
+                dict.contains('/Viewport') ||
+                dict.contains('/Measure') ||
+                dict.contains('/LGIDict') ||
+                dict.contains('/GPTS') ||
+                dict.contains('/WKT') ||
+                dict.contains('/Registration');
+            if (hasGeoref) {
+              final streamStartIndex = match.end;
+              final streamEndIndex = content.indexOf(
+                'endstream',
+                streamStartIndex,
+              );
+              if (streamEndIndex != -1) {
+                final compressed = content
+                    .substring(streamStartIndex, streamEndIndex)
+                    .codeUnits;
+                final decompressed = zlib.decode(compressed);
+                content += "\n${String.fromCharCodes(decompressed)}";
+              }
+            }
           } catch (_) {}
         }
       } catch (_) {}
@@ -176,18 +319,18 @@ class GeoreferenceService {
         ...RegExp(r'(PROJCS\[.*?\])').allMatches(content),
         ...RegExp(r'(GEOGCS\[.*?\])').allMatches(content),
       ];
-      
+
       for (var match in wktMatches) {
         String candidate = match.group(1) ?? match.group(0)!;
-        if (!candidate.contains("Web_Mercator") && 
-            !candidate.contains("Auxiliary_Sphere") && 
+        if (!candidate.contains("Web_Mercator") &&
+            !candidate.contains("Auxiliary_Sphere") &&
             !candidate.contains("EPSG:3857")) {
           wkt = candidate;
           // WKT Válido Encontrado
           break; // Tomar el primero que no sea Web Mercator
         }
       }
-      
+
       if (wkt == null && wktMatches.isNotEmpty) {
         wkt = wktMatches.first.group(1) ?? wktMatches.first.group(0)!;
         // WKT Fallback Encontrado
@@ -340,7 +483,10 @@ class GeoreferenceService {
               cropY: cropY,
               projectionIdentifier: wkt,
               isProjected: true,
-              boundsSouth: null, boundsNorth: null, boundsWest: null, boundsEast: null,
+              boundsSouth: null,
+              boundsNorth: null,
+              boundsWest: null,
+              boundsEast: null,
             );
           }
         }
@@ -419,37 +565,37 @@ class GeoreferenceService {
 
         // Intentar leer el BBox real del mapa desde un /Viewport
         final vpDictMatches = RegExp(
-          r'<<[^>]*?/Type\s*/Viewport[^>]*?>>', 
-          dotAll: true
+          r'<<[^>]*?/Type\s*/Viewport[^>]*?>>',
+          dotAll: true,
         ).allMatches(content);
-        
+
         List<double>? vpBBox;
         for (var m in vpDictMatches) {
-          var bboxMatch = RegExp(r'/BBox\s*\[\s*([\d\.\s-]+)\s*\]').firstMatch(m.group(0)!);
+          var bboxMatch = RegExp(
+            r'/BBox\s*\[\s*([\d\.\s-]+)\s*\]',
+          ).firstMatch(m.group(0)!);
           if (bboxMatch != null) {
             vpBBox = _parseNumbers(bboxMatch.group(1)!);
             break;
           }
         }
 
-        if (vpBBox != null && vpBBox.length >= 4 && mediaWidth > 0 && mediaHeight > 0) {
+        if (vpBBox != null &&
+            vpBBox.length >= 4 &&
+            mediaWidth > 0 &&
+            mediaHeight > 0) {
           double minX = vpBBox[0] / mediaWidth;
           double minY = vpBBox[1] / mediaHeight;
           double maxX = vpBBox[2] / mediaWidth;
           double maxY = vpBBox[3] / mediaHeight;
-          
-          lpts = [
-            minX, maxY,
-            maxX, maxY,
-            minX, minY,
-            maxX, minY
-          ];
+
+          lpts = [minX, maxY, maxX, maxY, minX, minY, maxX, minY];
           // LPTS reparado usando /Viewport /BBox
         }
 
         if (gpts.length >= 6) {
           bool isProjected = gpts.any((n) => n.abs() > 180);
-          
+
           double? bSouth, bNorth, bWest, bEast;
           if (!isProjected && vpBBox != null) {
             // Compute bounds extrapolating Viewport GPTS to Full Page
@@ -457,54 +603,69 @@ class GeoreferenceService {
             for (int i = 0; i < gpts.length - 1; i += 2) {
               double v1 = gpts[i], v2 = gpts[i + 1], lat, lon;
               if (v1.abs() < 15 && v2.abs() > 60) {
-                lat = v1; lon = v2;
+                lat = v1;
+                lon = v2;
               } else if (v2.abs() < 15 && v1.abs() > 60) {
-                lat = v2; lon = v1;
+                lat = v2;
+                lon = v1;
               } else {
-                lat = v1; lon = v2;
+                lat = v1;
+                lon = v2;
               }
               if (lat < minLat) minLat = lat;
               if (lat > maxLat) maxLat = lat;
               if (lon < minLon) minLon = lon;
               if (lon > maxLon) maxLon = lon;
             }
-            
+
             // Web Mercator constants
             double r = 6378137.0;
             double d = math.pi / 180.0;
             double maxLatClamped = 85.0511287798;
-            
-            double swLat = math.max(-maxLatClamped, math.min(maxLatClamped, minLat));
-            double neLat = math.max(-maxLatClamped, math.min(maxLatClamped, maxLat));
-            
+
+            double swLat = math.max(
+              -maxLatClamped,
+              math.min(maxLatClamped, minLat),
+            );
+            double neLat = math.max(
+              -maxLatClamped,
+              math.min(maxLatClamped, maxLat),
+            );
+
             // Project GPTS to Web Mercator
             double minEasting = r * minLon * d;
-            double minNorthing = r * math.log(math.tan((math.pi / 4.0) + (swLat * d / 2.0)));
+            double minNorthing =
+                r * math.log(math.tan((math.pi / 4.0) + (swLat * d / 2.0)));
             double maxEasting = r * maxLon * d;
-            double maxNorthing = r * math.log(math.tan((math.pi / 4.0) + (neLat * d / 2.0)));
-            
+            double maxNorthing =
+                r * math.log(math.tan((math.pi / 4.0) + (neLat * d / 2.0)));
+
             double vpWidthPts = vpBBox[2] - vpBBox[0];
             double vpHeightPts = vpBBox[3] - vpBBox[1];
-            
+
             double pixelWidth = (maxEasting - minEasting) / vpWidthPts;
             double pixelHeight = (maxNorthing - minNorthing) / vpHeightPts;
-            
+
             // Extrapolate to MediaBox Origin (Top-Left of page)
             double originX = minEasting - (vpBBox[0] * pixelWidth);
-            double originY = maxNorthing + ((mediaHeight - vpBBox[3]) * pixelHeight);
-            
+            double originY =
+                maxNorthing + ((mediaHeight - vpBBox[3]) * pixelHeight);
+
             // Extrapolate to MediaBox Bottom-Right
             double brX = originX + (mediaWidth * pixelWidth);
             double brY = originY - (mediaHeight * pixelHeight);
-            
+
             // Unproject back to Lat/Lon
             double dInv = 180.0 / math.pi;
             double tlLon = originX * dInv / r;
-            double tlLat = (2.0 * math.atan(math.exp(originY / r)) - (math.pi / 2.0)) * dInv;
-            
+            double tlLat =
+                (2.0 * math.atan(math.exp(originY / r)) - (math.pi / 2.0)) *
+                dInv;
+
             double brLon = brX * dInv / r;
-            double brLat = (2.0 * math.atan(math.exp(brY / r)) - (math.pi / 2.0)) * dInv;
-            
+            double brLat =
+                (2.0 * math.atan(math.exp(brY / r)) - (math.pi / 2.0)) * dInv;
+
             bSouth = brLat;
             bNorth = tlLat;
             bWest = tlLon;
@@ -516,26 +677,38 @@ class GeoreferenceService {
             for (int i = 0; i < gpts.length - 1; i += 2) {
               double v1 = gpts[i], v2 = gpts[i + 1], lat, lon;
               if (v1.abs() < 15 && v2.abs() > 60) {
-                lat = v1; lon = v2;
+                lat = v1;
+                lon = v2;
               } else if (v2.abs() < 15 && v1.abs() > 60) {
-                lat = v2; lon = v1;
+                lat = v2;
+                lon = v1;
               } else {
-                lat = v1; lon = v2;
+                lat = v1;
+                lon = v2;
               }
               if (lat < minLat) minLat = lat;
               if (lat > maxLat) maxLat = lat;
               if (lon < minLon) minLon = lon;
               if (lon > maxLon) maxLon = lon;
             }
-            if (minLat >= -90 && maxLat <= 90 && minLon >= -180 && maxLon <= 180) {
-              bSouth = minLat; bNorth = maxLat; bWest = minLon; bEast = maxLon;
+            if (minLat >= -90 &&
+                maxLat <= 90 &&
+                minLon >= -180 &&
+                maxLon <= 180) {
+              bSouth = minLat;
+              bNorth = maxLat;
+              bWest = minLon;
+              bEast = maxLon;
               // Bounds directos desde GPTS
             }
           }
-          
+
           double? minLX, minLY, maxLX, maxLY;
           if (lpts.length >= 8) {
-            minLX = 2.0; maxLX = -2.0; minLY = 2.0; maxLY = -2.0;
+            minLX = 2.0;
+            maxLX = -2.0;
+            minLY = 2.0;
+            maxLY = -2.0;
             for (int i = 0; i < lpts.length - 1; i += 2) {
               double x = lpts[i], y = lpts[i + 1];
               if (x < minLX!) minLX = x;
@@ -722,10 +895,22 @@ class GeoreferenceService {
 
     final bounds = getMapBounds(mapTitle);
     if (bounds != null) {
-      final minLat = math.min(bounds.southWest.latitude, bounds.northEast.latitude);
-      final maxLat = math.max(bounds.southWest.latitude, bounds.northEast.latitude);
-      final minLon = math.min(bounds.southWest.longitude, bounds.northEast.longitude);
-      final maxLon = math.max(bounds.southWest.longitude, bounds.northEast.longitude);
+      final minLat = math.min(
+        bounds.southWest.latitude,
+        bounds.northEast.latitude,
+      );
+      final maxLat = math.max(
+        bounds.southWest.latitude,
+        bounds.northEast.latitude,
+      );
+      final minLon = math.min(
+        bounds.southWest.longitude,
+        bounds.northEast.longitude,
+      );
+      final maxLon = math.max(
+        bounds.southWest.longitude,
+        bounds.northEast.longitude,
+      );
 
       if (lat < minLat || lat > maxLat || lon < minLon || lon > maxLon) {
         return MapSpatialStatus.outside;
@@ -772,10 +957,22 @@ class GeoreferenceService {
 
     final bounds = getMapBounds(mapTitle);
     if (bounds != null) {
-      final minLat = math.min(bounds.southWest.latitude, bounds.northEast.latitude);
-      final maxLat = math.max(bounds.southWest.latitude, bounds.northEast.latitude);
-      final minLon = math.min(bounds.southWest.longitude, bounds.northEast.longitude);
-      final maxLon = math.max(bounds.southWest.longitude, bounds.northEast.longitude);
+      final minLat = math.min(
+        bounds.southWest.latitude,
+        bounds.northEast.latitude,
+      );
+      final maxLat = math.max(
+        bounds.southWest.latitude,
+        bounds.northEast.latitude,
+      );
+      final minLon = math.min(
+        bounds.southWest.longitude,
+        bounds.northEast.longitude,
+      );
+      final maxLon = math.max(
+        bounds.southWest.longitude,
+        bounds.northEast.longitude,
+      );
 
       if (lat < minLat || lat > maxLat || lon < minLon || lon > maxLon) {
         return false;
@@ -952,7 +1149,10 @@ class GeoreferenceService {
     final cal = _getCalibration(mapTitle);
     if (cal == null) return null;
 
-    if (cal.boundsSouth != null && cal.boundsNorth != null && cal.boundsWest != null && cal.boundsEast != null) {
+    if (cal.boundsSouth != null &&
+        cal.boundsNorth != null &&
+        cal.boundsWest != null &&
+        cal.boundsEast != null) {
       final bounds = flutter_map.LatLngBounds(
         latlong2.LatLng(cal.boundsSouth!, cal.boundsWest!),
         latlong2.LatLng(cal.boundsNorth!, cal.boundsEast!),
@@ -962,8 +1162,20 @@ class GeoreferenceService {
     }
 
     final corners = [
-      getLatLonFromPixel(mapTitle: mapTitle, px: 0, py: 0, mapWidth: cal.originalImageWidth, mapHeight: cal.originalImageHeight),
-      getLatLonFromPixel(mapTitle: mapTitle, px: cal.originalImageWidth, py: cal.originalImageHeight, mapWidth: cal.originalImageWidth, mapHeight: cal.originalImageHeight),
+      getLatLonFromPixel(
+        mapTitle: mapTitle,
+        px: 0,
+        py: 0,
+        mapWidth: cal.originalImageWidth,
+        mapHeight: cal.originalImageHeight,
+      ),
+      getLatLonFromPixel(
+        mapTitle: mapTitle,
+        px: cal.originalImageWidth,
+        py: cal.originalImageHeight,
+        mapWidth: cal.originalImageWidth,
+        mapHeight: cal.originalImageHeight,
+      ),
     ];
 
     if (corners[0] == null || corners[1] == null) return null;
@@ -972,7 +1184,7 @@ class GeoreferenceService {
       latlong2.LatLng(corners[0]!['lat']!, corners[0]!['lon']!),
       latlong2.LatLng(corners[1]!['lat']!, corners[1]!['lon']!),
     );
-    
+
     // Bounding box debug complete
 
     return bounds;
@@ -1009,17 +1221,18 @@ class GeoreferenceService {
       final zone = (((lon + 180) / 6).floor() + 1).clamp(1, 60);
       final isSouth = lat < 0;
       final projKey = 'UTM_$zone${isSouth ? "S" : "N"}';
-      
+
       var projUtm = Projection.get(projKey);
       if (projUtm == null) {
         final southFlag = isSouth ? ' +south' : '';
-        final projDef = '+proj=utm +zone=$zone$southFlag +ellps=WGS84 +datum=WGS84 +units=m +no_defs';
+        final projDef =
+            '+proj=utm +zone=$zone$southFlag +ellps=WGS84 +datum=WGS84 +units=m +no_defs';
         projUtm = Projection.add(projKey, projDef);
       }
-      
+
       final projWgs84 = Projection.get('EPSG:4326') ?? Projection.WGS84;
       final point = projWgs84.transform(projUtm, Point(x: lon, y: lat));
-      
+
       return 'E: ${point.x.toStringAsFixed(3)}, N: ${point.y.toStringAsFixed(3)}';
     } catch (e) {
       return 'Error de cálculo';
