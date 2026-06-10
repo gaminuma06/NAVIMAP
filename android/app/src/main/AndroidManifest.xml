@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permiso para que la app se conecte a Internet y descargue mapas satelitales -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Permisos requeridos para consultar el chip GPS del dispositivo -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:label="navimap"
         android:name="${applicationName}"
