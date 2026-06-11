@@ -47,15 +47,49 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   bool get isMapsTab => _selectedSegment == 0;
 
+  bool _isMapEnabled(Map<String, dynamic> map, bool isPro) {
+    if (isPro) return true;
+
+    // Sort all current mockMaps by addedAt ascending
+    final sorted = List<Map<String, dynamic>>.from(_mockMaps);
+    sorted.sort((a, b) {
+      final aTime = a['addedAt'] as num? ?? 0;
+      final bTime = b['addedAt'] as num? ?? 0;
+      return aTime.compareTo(bTime);
+    });
+
+    // Find the index of the current map in the sorted list
+    final index = sorted.indexOf(map);
+    return index >= 0 && index < 3;
+  }
+
   List<Map<String, dynamic>> get _filteredMaps {
-    if (_searchQuery.isEmpty) return _mockMaps;
-    return _mockMaps
-        .where(
-          (map) => map['title'].toString().toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          ),
-        )
-        .toList();
+    List<Map<String, dynamic>> list = _mockMaps;
+    if (_searchQuery.isNotEmpty) {
+      list = _mockMaps
+          .where(
+            (map) => map['title'].toString().toLowerCase().contains(
+              _searchQuery.toLowerCase(),
+            ),
+          )
+          .toList();
+    }
+
+    final isPro = SubscriptionService().isPro;
+    final sortedList = List<Map<String, dynamic>>.from(list);
+    sortedList.sort((a, b) {
+      if (!isPro) {
+        final aEnabled = _isMapEnabled(a, false);
+        final bEnabled = _isMapEnabled(b, false);
+        if (aEnabled && !bEnabled) return -1;
+        if (!aEnabled && bEnabled) return 1;
+      }
+
+      final aTime = a['addedAt'] as num? ?? 0;
+      final bTime = b['addedAt'] as num? ?? 0;
+      return bTime.compareTo(aTime);
+    });
+    return sortedList;
   }
 
   List<Map<String, dynamic>> get _filteredLayers {
@@ -87,6 +121,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
         _lastLocation = location;
         _recalculateMapStatuses();
       });
+    });
+    SubscriptionService().planNotifier.addListener(_checkPlanCelebration);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkPlanCelebration();
     });
   }
 
@@ -206,8 +244,183 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  void _checkPlanCelebration() {
+    if (!mounted) return;
+    final service = SubscriptionService();
+    if (service.celebrationPending) {
+      service.celebrationPending = false;
+      final plan = service.currentPlan;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showCelebrationDialog(plan);
+      });
+    }
+  }
+
+  void _showCelebrationDialog(String plan) {
+    final isHlg = plan.toLowerCase() == 'hlg';
+    final themeColor = isHlg ? const Color(0xFF00E676) : const Color(0xFFFFD700);
+    final planName = isHlg ? 'Hacienda La Gloria (HLG)' : 'NAVIMAP Pro';
+    final cardTitle = isHlg ? '¡Acceso Corporativo Activado!' : '¡Bienvenido a NAVIMAP Pro!';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF131313),
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColor.withValues(alpha: 0.15),
+                blurRadius: 24,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon with glow
+              Container(
+                padding: const EdgeInsets.all(DesignSystem.spacingLg),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: themeColor.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeColor.withValues(alpha: 0.05),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  isHlg ? Icons.business_rounded : Icons.workspace_premium_rounded,
+                  color: themeColor,
+                  size: 56,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Plan Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: themeColor.withValues(alpha: 0.3), width: 0.8),
+                ),
+                child: Text(
+                  planName.toUpperCase(),
+                  style: GoogleFonts.spaceGrotesk(
+                    color: themeColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Card Title
+              Text(
+                cardTitle,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.spaceGrotesk(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Card Subtitle
+              isHlg
+                  ? Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(
+                            text: 'Dispones acceso corporativo ilimitado provisto y gestionado directamente por Hacienda la Gloria, gracias al ingeniero Adan Arias.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13.5,
+                              height: 1.5,
+                            ),
+                          ),
+                          const WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4.0),
+                              child: Icon(
+                                Icons.water_drop,
+                                size: 13,
+                                color: Color(0xFF00B0FF),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    )
+                  : const Text(
+                      '¡Gracias por suscribirte! Ahora tienes acceso a todas las herramientas avanzadas y mapas ilimitados.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13.5,
+                        height: 1.5,
+                      ),
+                    ),
+              const SizedBox(height: 32),
+              // Action Button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'COMENZAR',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: Colors.black.withValues(alpha: 0.8),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    SubscriptionService().planNotifier.removeListener(_checkPlanCelebration);
     _locationSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -336,6 +549,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   dateAdded: item['date'],
                                   status: item['status'],
                                   thumbnailBytes: item['thumbnailBytes'],
+                                  isEnabled: _isMapEnabled(item, SubscriptionService().isPro),
                                   onTap: () {
                                     final bytes = MapStore.bytesCache[title];
                                     if (bytes != null) {
@@ -509,186 +723,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _onAddPressed() {
     if (isMapsTab) {
-      // Verificar límite de 3 GeoPDFs en plan gratuito
-      final isPro = SubscriptionService().isPro;
-      if (!isPro && _mockMaps.length >= 3) {
-        showDialog(
-          context: context,
-          builder: (context) => Dialog(
-            backgroundColor: DesignSystem.surfaceContainer,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
-              side: const BorderSide(color: DesignSystem.outline, width: 0.5),
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(DesignSystem.spacingLg),
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(DesignSystem.spacingMd),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.amber.withValues(alpha: 0.3), width: 1.5),
-                      ),
-                      child: const Icon(
-                        Icons.star_rounded,
-                        color: Colors.amber,
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: DesignSystem.spacingLg),
-                  Text(
-                    'Desbloquea NAVIMAP Pro',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: DesignSystem.spacingSm),
-                  const Text(
-                    'Has alcanzado el límite de 3 mapas GeoPDF del plan básico. Actualiza a Pro para desbloquear todo el potencial de la aplicación.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: DesignSystem.spacingLg),
-                  Container(
-                    padding: const EdgeInsets.all(DesignSystem.spacingMd),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
-                      border: Border.all(color: DesignSystem.outline, width: 0.5),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildBenefitRow(
-                          icon: Icons.map_outlined,
-                          title: 'Importaciones Ilimitadas',
-                          description: 'Agrega y organiza todos los GeoPDFs que requieras.',
-                        ),
-                        const SizedBox(height: DesignSystem.spacingMd),
-                        _buildBenefitRow(
-                          icon: Icons.satellite_alt_outlined,
-                          title: 'Mapas Satelitales Offline',
-                          description: 'Descarga imágenes para navegar sin conexión a internet.',
-                        ),
-                        const SizedBox(height: DesignSystem.spacingMd),
-                        _buildBenefitRow(
-                          icon: Icons.flash_on_rounded,
-                          title: 'Rendimiento Mejorado',
-                          description: 'Carga y renderizado más rápido de capas geográficas.',
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: DesignSystem.spacingLg),
-                  // Si es Android y no Web, mostramos el botón de Play Store
-                  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        Navigator.pushNamed(context, '/settings');
-                        try {
-                          await BillingService().buySubscription();
-                        } catch (e) {
-                          debugPrint('Error en compra desde biblioteca: $e');
-                        }
-                      },
-                      child: const Text(
-                        'Suscribirse en Play Store',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ),
-                    const SizedBox(height: DesignSystem.spacingSm),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: DesignSystem.outline),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pushNamed(
-                          context,
-                          '/settings',
-                          arguments: {'autoOpenActivation': true},
-                        );
-                      },
-                      child: const Text(
-                        'Tengo un Código de Activación',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ),
-                  ] else ...[
-                    // Web o iOS: Solo Código de Activación
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pushNamed(
-                          context,
-                          '/settings',
-                          arguments: {'autoOpenActivation': true},
-                        );
-                      },
-                      child: const Text(
-                        'Tengo un Código de Activación',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: DesignSystem.spacingSm),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white70,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Mantener Plan Básico',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-        return;
-      }
-
       AddMapOverlay.show(
         context,
         onMapProcessingStarted: (name) {
@@ -697,40 +731,53 @@ class _LibraryScreenState extends State<LibraryScreen> {
           });
         },
         onMapAdded: (name, thumbnail, fullBytes) async {
-          if (fullBytes != null) {
-            final bytes = Uint8List.fromList(fullBytes);
-            MapStore.bytesCache[name] = bytes;
-            await GeoreferenceService().scanGeoPdfMetadata(name, bytes);
-          }
-
-          setState(() {
-            _loadingMaps.remove(name);
-
-            // Calculate initial status
-            MapSpatialStatus initialStatus = MapSpatialStatus.notReferenced;
-            if (GeoreferenceService().hasCalibrationFor(name)) {
-              if (_lastLocation != null) {
-                bool isInside = GeoreferenceService().isUserInsideMap(
-                  name,
-                  _lastLocation!.latitude,
-                  _lastLocation!.longitude,
-                );
-                initialStatus = isInside
-                    ? MapSpatialStatus.within
-                    : MapSpatialStatus.outside;
-              } else {
-                initialStatus = MapSpatialStatus.outside;
-              }
+          try {
+            if (fullBytes != null) {
+              final bytes = Uint8List.fromList(fullBytes);
+              MapStore.bytesCache[name] = bytes;
+              await GeoreferenceService().scanGeoPdfMetadata(name, bytes);
             }
+          } catch (e) {
+            debugPrint('Error al escanear metadatos del GeoPDF importado: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error al procesar metadatos de "$name": $e'),
+                  backgroundColor: DesignSystem.error,
+                ),
+              );
+            }
+          } finally {
+            setState(() {
+              _loadingMaps.remove(name);
 
-            _mockMaps.insert(0, {
-              'title': name,
-              'date':
-                  '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-              'status': initialStatus,
-              'thumbnailBytes': thumbnail,
+              // Calcular estado inicial
+              MapSpatialStatus initialStatus = MapSpatialStatus.notReferenced;
+              if (GeoreferenceService().hasCalibrationFor(name)) {
+                if (_lastLocation != null) {
+                  bool isInside = GeoreferenceService().isUserInsideMap(
+                    name,
+                    _lastLocation!.latitude,
+                    _lastLocation!.longitude,
+                  );
+                  initialStatus = isInside
+                      ? MapSpatialStatus.within
+                      : MapSpatialStatus.outside;
+                } else {
+                  initialStatus = MapSpatialStatus.outside;
+                }
+              }
+
+              _mockMaps.insert(0, {
+                'title': name,
+                'date':
+                    '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                'status': initialStatus,
+                'thumbnailBytes': thumbnail,
+                'addedAt': DateTime.now().millisecondsSinceEpoch,
+              });
             });
-          });
+          }
         },
       );
     } else {

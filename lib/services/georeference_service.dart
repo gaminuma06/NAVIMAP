@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:io';
-import 'dart:convert' show jsonEncode, jsonDecode;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:proj4dart/proj4dart.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
@@ -242,36 +242,44 @@ class GeoreferenceService {
   }
 
   MapCalibration? _extractCalibrationFromPdf(Uint8List bytes) {
-    String content = String.fromCharCodes(
-      bytes.take(math.min(bytes.length, 10000000)).toList(),
-    );
-
-    double mediaWidth = 1000.0, mediaHeight = 1000.0, cropX = 0.0, cropY = 0.0;
-    final mediaBoxMatch = RegExp(
-      r'/MediaBox\s*\[\s*([\d\.\s-]+)\s*\]',
-    ).firstMatch(content);
-    if (mediaBoxMatch != null) {
-      final parts = _parseNumbers(mediaBoxMatch.group(1)!);
-      if (parts.length >= 4) {
-        mediaWidth = (parts[2] - parts[0]).abs();
-        mediaHeight = (parts[3] - parts[1]).abs();
-      }
-    }
-    final cropBoxMatch = RegExp(
-      r'/CropBox\s*\[\s*([\d\.\s-]+)\s*\]',
-    ).firstMatch(content);
-    if (cropBoxMatch != null) {
-      final parts = _parseNumbers(cropBoxMatch.group(1)!);
-      if (parts.length >= 4) {
-        cropX = parts[0];
-        cropY = parts[1];
-        mediaWidth = (parts[2] - parts[0]).abs();
-        mediaHeight = (parts[3] - parts[1]).abs();
-      }
-    }
-
     try {
-      content = String.fromCharCodes(bytes);
+      String content = '';
+      try {
+        content = latin1.decode(
+          bytes.take(math.min(bytes.length, 10000000)).toList(),
+          allowInvalid: true,
+        );
+      } catch (e) {
+        debugPrint('Error en decodificación inicial latin1: $e');
+        return null;
+      }
+
+      double mediaWidth = 1000.0, mediaHeight = 1000.0, cropX = 0.0, cropY = 0.0;
+      final mediaBoxMatch = RegExp(
+        r'/MediaBox\s*\[\s*([\d\.\s-]+)\s*\]',
+      ).firstMatch(content);
+      if (mediaBoxMatch != null) {
+        final parts = _parseNumbers(mediaBoxMatch.group(1)!);
+        if (parts.length >= 4) {
+          mediaWidth = (parts[2] - parts[0]).abs();
+          mediaHeight = (parts[3] - parts[1]).abs();
+        }
+      }
+      final cropBoxMatch = RegExp(
+        r'/CropBox\s*\[\s*([\d\.\s-]+)\s*\]',
+      ).firstMatch(content);
+      if (cropBoxMatch != null) {
+        final parts = _parseNumbers(cropBoxMatch.group(1)!);
+        if (parts.length >= 4) {
+          cropX = parts[0];
+          cropY = parts[1];
+          mediaWidth = (parts[2] - parts[0]).abs();
+          mediaHeight = (parts[3] - parts[1]).abs();
+        }
+      }
+
+      try {
+        content = latin1.decode(bytes, allowInvalid: true);
 
       double userUnit = 1.0;
       final uuMatch = RegExp(r'/UserUnit\s+(\d+\.?\d*)').firstMatch(content);
@@ -877,6 +885,10 @@ class GeoreferenceService {
       debugInfo = "Error: $e";
     }
     return null;
+    } catch (e) {
+      debugPrint('Error crítico en _extractCalibrationFromPdf: $e');
+      return null;
+    }
   }
 
   MapCalibration? getCalibration(String mapTitle) {

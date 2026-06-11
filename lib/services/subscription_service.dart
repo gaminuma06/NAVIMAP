@@ -22,8 +22,20 @@ class SubscriptionService {
     activeNotifier.value = savedActive;
   }
 
+  bool celebrationPending = false;
+
   void updateSubscriptionState(String plan, bool active) {
+    final String oldPlan = planNotifier.value;
+    final bool oldActive = activeNotifier.value;
+
     planNotifier.value = plan;
     activeNotifier.value = active;
+
+    // Trigger celebration only on upgrade transitions (from free to pro/hlg, or if it wasn't active and becomes active pro/hlg)
+    if (active && (plan == 'pro' || plan.toLowerCase() == 'hlg')) {
+      if (!oldActive || oldPlan == 'free') {
+        celebrationPending = true;
+      }
+    }
   }
 }

@@ -13,6 +13,9 @@ import '../widgets/object_list_item.dart';
 import 'object_attributes_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
+import 'library_screen.dart';
+import '../services/subscription_service.dart';
+import '../widgets/upgrade_dialog.dart';
 
 class MapDetailScreen extends StatefulWidget {
   const MapDetailScreen({super.key});
@@ -57,6 +60,23 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     } catch (_) {
       return const latlong2.LatLng(8.623083, -73.732583);
     }
+  }
+
+  bool _isCurrentMapEnabled() {
+    if (SubscriptionService().isPro) return true;
+    final title = _mapTitle;
+    if (title.isEmpty) return false;
+
+    // Sort all mockMaps by addedAt ascending to find the chronological order
+    final sorted = List<Map<String, dynamic>>.from(MapStore.mockMaps);
+    sorted.sort((a, b) {
+      final aTime = a['addedAt'] as num? ?? 0;
+      final bTime = b['addedAt'] as num? ?? 0;
+      return aTime.compareTo(bTime);
+    });
+
+    final index = sorted.indexWhere((m) => m['title'] == title);
+    return index >= 0 && index < 3;
   }
 
   double _calculateGeodesicLength(List<latlong2.LatLng> points) {
@@ -161,6 +181,10 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   }
 
   void _toggleMeasuringMode() {
+    if (!_isCurrentMapEnabled()) {
+      UpgradeDialog.show(context);
+      return;
+    }
     setState(() {
       _isMeasuringMode = !_isMeasuringMode;
       _measuringPoints.clear();
@@ -484,6 +508,10 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   }
 
   void _calibratePosition() {
+    if (!_isCurrentMapEnabled()) {
+      UpgradeDialog.show(context);
+      return;
+    }
     if (_currentUserLocation == null || _mapImageBytes == null) return;
     
     final isInside = GeoreferenceService().isUserInsideMap(
@@ -1020,6 +1048,10 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   }
 
   void _handlePlacePin() {
+    if (!_isCurrentMapEnabled()) {
+      UpgradeDialog.show(context);
+      return;
+    }
     final center = _currentMapCenter ?? (() {
       try {
         return _mapController.camera.center;
@@ -1210,6 +1242,10 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
   }
 
   void _openMapLayers() {
+    if (!_isCurrentMapEnabled()) {
+      UpgradeDialog.show(context);
+      return;
+    }
     Navigator.pushNamed(
       context,
       '/map-layers',
@@ -1384,7 +1420,8 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                           polylines: _getPolylines(),
                         ),
                         MarkerLayer(
-                          markers: (_currentUserLocation != null &&
+                          markers: (_isCurrentMapEnabled() &&
+                                  _currentUserLocation != null &&
                                   GeoreferenceService().isUserInsideMap(
                                     _mapTitle,
                                     _currentUserLocation!.latitude,
@@ -1570,6 +1607,10 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                             _dragDistance = 0.0;
                           },
                           onVerticalDragUpdate: (details) {
+                            if (!_isCurrentMapEnabled()) {
+                              _dragDistance = 0.0;
+                              return;
+                            }
                             _dragDistance += details.primaryDelta ?? 0.0;
                             if (_dragDistance < -20) {
                               _dragDistance = 0.0;
@@ -1577,11 +1618,19 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                             }
                           },
                           onVerticalDragEnd: (details) {
+                            if (!_isCurrentMapEnabled()) {
+                              UpgradeDialog.show(context);
+                              return;
+                            }
                             if (details.primaryVelocity != null && details.primaryVelocity! < -100) {
                               _showCoordinateFormatSelector(context);
                             }
                           },
                           onLongPress: () async {
+                            if (!_isCurrentMapEnabled()) {
+                              UpgradeDialog.show(context);
+                              return;
+                            }
                             if (centerLatLon != null) {
                               final String coordText = GeoreferenceService().formatCoordinates(
                                 centerLatLon['lat']!,
@@ -1606,20 +1655,22 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  centerLatLon != null
-                                      ? GeoreferenceService().formatCoordinates(
-                                          centerLatLon['lat']!,
-                                          centerLatLon['lon']!,
-                                          _coordinateFormat,
-                                        )
-                                      : (GeoreferenceService().hasCalibrationFor(
-                                               _mapTitle,
-                                             )
-                                             ? 'Calculando...'
-                                             : 'NO REFERENCIADO'),
+                                  !_isCurrentMapEnabled()
+                                      ? 'COORDENADAS BLOQUEADAS (PRO)'
+                                      : (centerLatLon != null
+                                          ? GeoreferenceService().formatCoordinates(
+                                              centerLatLon['lat']!,
+                                              centerLatLon['lon']!,
+                                              _coordinateFormat,
+                                            )
+                                          : (GeoreferenceService().hasCalibrationFor(
+                                                   _mapTitle,
+                                                 )
+                                                 ? 'Calculando...'
+                                                 : 'NO REFERENCIADO')),
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: !_isCurrentMapEnabled() ? DesignSystem.error : Colors.white,
                                     fontSize: 12,
                                     fontFamily: 'monospace',
                                     fontWeight: FontWeight.bold,

@@ -7,12 +7,13 @@ class MapListItem extends StatelessWidget {
   final String title;
   final String dateAdded;
   final MapSpatialStatus status;
-  final String? thumbnailPath;
-  final Uint8List? thumbnailBytes;
   final VoidCallback onTap;
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
   final VoidCallback? onShare;
+  final String? thumbnailPath;
+  final Uint8List? thumbnailBytes;
+  final bool isEnabled;
 
   const MapListItem({
     super.key,
@@ -25,6 +26,7 @@ class MapListItem extends StatelessWidget {
     this.onShare,
     this.thumbnailPath,
     this.thumbnailBytes,
+    this.isEnabled = true,
   });
 
   @override
@@ -37,7 +39,12 @@ class MapListItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: DesignSystem.surfaceContainer,
           borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
-          border: Border.all(color: DesignSystem.outline.withOpacity(0.5)),
+          border: Border.all(
+            color: isEnabled 
+                ? DesignSystem.outline.withValues(alpha: 0.5) 
+                : Colors.amber.withValues(alpha: 0.25),
+            width: isEnabled ? 1.0 : 1.2,
+          ),
         ),
         child: Row(
           children: [
@@ -49,7 +56,18 @@ class MapListItem extends StatelessWidget {
                 color: Colors.black26,
                 borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
               ),
-              child: _buildThumbnail(),
+              child: Stack(
+                children: [
+                  Positioned.fill(child: _buildThumbnail()),
+                  if (!isEnabled)
+                    Container(
+                      color: Colors.black54,
+                      child: const Center(
+                        child: Icon(Icons.lock, color: Colors.amber, size: 20),
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(width: DesignSystem.spacingMd),
 
@@ -62,6 +80,7 @@ class MapListItem extends StatelessWidget {
                     title,
                     style: DesignSystem.bodyLg.copyWith(
                       fontWeight: FontWeight.bold,
+                      color: isEnabled ? Colors.white : Colors.white70,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -166,6 +185,24 @@ class MapListItem extends StatelessWidget {
   }
 
   Widget _buildStatusLabel() {
+    if (!isEnabled) {
+      return Row(
+        children: [
+          const Icon(Icons.lock_outline, size: 14, color: Colors.amber),
+          const SizedBox(width: 6),
+          Text(
+            'HERRAMIENTAS BLOQUEADAS (PLAN FREE)',
+            style: DesignSystem.labelCaps.copyWith(
+              color: Colors.amber,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      );
+    }
+
     IconData icon;
     String text;
     Color color;

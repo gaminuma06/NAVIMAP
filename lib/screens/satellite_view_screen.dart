@@ -15,6 +15,8 @@ import '../services/georeference_service.dart';
 import '../services/offline_map_service.dart';
 import '../widgets/object_list_item.dart'; // Para GeoObjectType
 import 'object_attributes_screen.dart'; // Para navegar a los atributos del marcador
+import '../services/subscription_service.dart';
+import '../widgets/upgrade_dialog.dart';
 
 class SatelliteViewScreen extends StatefulWidget {
   const SatelliteViewScreen({super.key});
@@ -322,6 +324,17 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
     });
   }
 
+  int _getSatelliteObjectsCount() {
+    int count = 0;
+    final layersList = LayerStore.getLayers(_mapTitle);
+    for (var layer in layersList) {
+      final String layerName = layer['title'] as String;
+      final objects = LayerStore.getObjects(layerName, mapContext: _mapTitle);
+      count += objects.length;
+    }
+    return count;
+  }
+
   void _toggleMeasuringMode() {
     setState(() {
       _isMeasuringMode = !_isMeasuringMode;
@@ -338,6 +351,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   }
 
   void _saveMeasuringLine() {
+    if (!SubscriptionService().isPro && _getSatelliteObjectsCount() >= 3) {
+      UpgradeDialog.show(context);
+      return;
+    }
     if (_measuringPoints.isEmpty) return;
 
     final List<LatLng> finalPoints = List.from(_measuringPoints);
@@ -473,6 +490,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   }
 
   void _saveMeasuringPolygon() {
+    if (!SubscriptionService().isPro && _getSatelliteObjectsCount() >= 3) {
+      UpgradeDialog.show(context);
+      return;
+    }
     if (_measuringPoints.length < 3) return;
 
     final List<LatLng> finalPoints = List.from(_measuringPoints);
@@ -604,6 +625,10 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   }
 
   void _handlePlacePin() {
+    if (!SubscriptionService().isPro && _getSatelliteObjectsCount() >= 3) {
+      UpgradeDialog.show(context);
+      return;
+    }
     final center = _getSafeCenter();
     final double lat = center.latitude;
     final double lon = center.longitude;
