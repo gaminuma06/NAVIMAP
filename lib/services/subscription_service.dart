@@ -20,22 +20,46 @@ class SubscriptionService {
 
     planNotifier.value = savedPlan;
     activeNotifier.value = savedActive;
+
+    // Check if we should celebrate this plan (if it's pro/hlg and has never been celebrated on this device)
+    if (savedActive && (savedPlan == 'pro' || savedPlan.toLowerCase() == 'hlg')) {
+      final key = 'navimap_celebrated_${savedPlan.toLowerCase()}';
+      final celebrated = prefs.getBool(key) ?? false;
+      if (!celebrated) {
+        celebrationPending = true;
+      }
+    }
   }
 
   bool celebrationPending = false;
 
-  void updateSubscriptionState(String plan, bool active) {
+  void updateSubscriptionState(String plan, bool active) async {
     final String oldPlan = planNotifier.value;
     final bool oldActive = activeNotifier.value;
 
     planNotifier.value = plan;
     activeNotifier.value = active;
 
-    // Trigger celebration only on upgrade transitions (from free to pro/hlg, or if it wasn't active and becomes active pro/hlg)
     if (active && (plan == 'pro' || plan.toLowerCase() == 'hlg')) {
-      if (!oldActive || oldPlan == 'free') {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'navimap_celebrated_${plan.toLowerCase()}';
+      final celebrated = prefs.getBool(key) ?? false;
+
+      if (!celebrated || !oldActive || oldPlan == 'free') {
         celebrationPending = true;
+        await prefs.setBool(key, true);
+
+        // Reset the other plan's celebrated flag so if they switch plans they see the new celebration
+        if (plan.toLowerCase() == 'pro') {
+          await prefs.remove('navimap_celebrated_hlg');
+        } else if (plan.toLowerCase() == 'hlg') {
+          await prefs.remove('navimap_celebrated_pro');
+        }
       }
+    } else if (plan == 'free' || !active) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('navimap_celebrated_pro');
+      await prefs.remove('navimap_celebrated_hlg');
     }
   }
 }

@@ -258,10 +258,163 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _showCelebrationDialog(String plan) {
     final isHlg = plan.toLowerCase() == 'hlg';
-    final themeColor = isHlg ? const Color(0xFF00E676) : const Color(0xFFFFD700);
-    final planName = isHlg ? 'Hacienda La Gloria (HLG)' : 'NAVIMAP Pro';
-    final cardTitle = isHlg ? '¡Acceso Corporativo Activado!' : '¡Bienvenido a NAVIMAP Pro!';
+    if (isHlg) {
+      _showHlgCelebrationDialog();
+    } else {
+      _showProCelebrationDialog();
+    }
+  }
 
+  void _showHlgCelebrationDialog() {
+    final themeColor = const Color(0xFF00E676); // Verde esmeralda brillante
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF131313),
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.6),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColor.withValues(alpha: 0.15),
+                blurRadius: 28,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Premium Enterprise Icon with glow
+              Container(
+                padding: const EdgeInsets.all(DesignSystem.spacingLg),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: themeColor.withValues(alpha: 0.35),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeColor.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.domain_verification_rounded,
+                  color: themeColor,
+                  size: 56,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Corporate Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: themeColor.withValues(alpha: 0.25), width: 0.8),
+                ),
+                child: Text(
+                  'ACCESO CORPORATIVO HLG',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: themeColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              // Title
+              Text(
+                '¡Bienvenido a NaviMap!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.spaceGrotesk(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Subtitle / Body text
+              Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(
+                      text: 'Gracias al Ingeniero Adan Arias y a la provisión directa de Hacienda La Gloria, tienes acceso ilimitado a todas las herramientas geográficas, capas y mapas georreferenciados de la plataforma.',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        height: 1.5,
+                      ),
+                    ),
+                    const WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 4.0),
+                        child: Icon(
+                          Icons.water_drop,
+                          size: 13,
+                          color: Color(0xFF00B0FF),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              // Premium Business Action Button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'COMENZAR',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: Colors.black.withValues(alpha: 0.8),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showProCelebrationDialog() {
+    final themeColor = const Color(0xFFFFD700); // Dorado
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -308,7 +461,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ],
                 ),
                 child: Icon(
-                  isHlg ? Icons.business_rounded : Icons.workspace_premium_rounded,
+                  Icons.workspace_premium_rounded,
                   color: themeColor,
                   size: 56,
                 ),
@@ -323,7 +476,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   border: Border.all(color: themeColor.withValues(alpha: 0.3), width: 0.8),
                 ),
                 child: Text(
-                  planName.toUpperCase(),
+                  'NAVIMAP PRO',
                   style: GoogleFonts.spaceGrotesk(
                     color: themeColor,
                     fontSize: 11,
@@ -335,7 +488,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               const SizedBox(height: 16),
               // Card Title
               Text(
-                cardTitle,
+                '¡Bienvenido a NAVIMAP Pro!',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.spaceGrotesk(
                   color: Colors.white,
@@ -346,42 +499,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
               const SizedBox(height: 12),
               // Card Subtitle
-              isHlg
-                  ? Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: 'Dispones acceso corporativo ilimitado provisto y gestionado directamente por Hacienda la Gloria, gracias al ingeniero Adan Arias.',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13.5,
-                              height: 1.5,
-                            ),
-                          ),
-                          const WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: Padding(
-                              padding: EdgeInsets.only(left: 4.0),
-                              child: Icon(
-                                Icons.water_drop,
-                                size: 13,
-                                color: Color(0xFF00B0FF),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      textAlign: TextAlign.center,
-                    )
-                  : const Text(
-                      '¡Gracias por suscribirte! Ahora tienes acceso a todas las herramientas avanzadas y mapas ilimitados.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13.5,
-                        height: 1.5,
-                      ),
-                    ),
+              Text(
+                '¡Gracias por suscribirte! Ahora tienes acceso a todas las herramientas avanzadas y mapas ilimitados.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
               const SizedBox(height: 32),
               // Action Button
               ElevatedButton(
