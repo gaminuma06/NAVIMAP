@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Permiso para que la app se conecte a Internet y descargue mapas satelitales -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.android.vending.BILLING" />
     
     <!-- Permisos requeridos para consultar el chip GPS del dispositivo -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />

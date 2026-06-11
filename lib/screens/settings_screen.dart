@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/design_system.dart';
 import '../services/offline_map_service.dart';
+import '../services/subscription_service.dart';
+import '../services/access_service.dart';
+import '../services/auth_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import '../services/billing_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,11 +20,416 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _offlineService = OfflineMapService();
+  bool _didCheckArguments = false;
 
   @override
   void initState() {
     super.initState();
     _offlineService.checkDownloadStatus();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didCheckArguments) {
+      _didCheckArguments = true;
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map<String, dynamic> && args['autoOpenActivation'] == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showActivationDialog(context);
+        });
+      }
+    }
+  }
+
+  Widget _buildSubscriptionCard(BuildContext context) {
+    return ValueListenableBuilder<String>(
+      valueListenable: SubscriptionService().planNotifier,
+      builder: (context, plan, _) {
+        final planLower = plan.toLowerCase();
+        final isHlg = planLower == 'hlg';
+        final isPro = planLower == 'pro' || isHlg;
+
+        // Título de la suscripción
+        String titleText = 'NAVIMAP Basic (Plan Gratuito)';
+        if (isHlg) {
+          titleText = 'Hacienda La Gloria (Acceso Corporativo)';
+        } else if (planLower == 'pro') {
+          titleText = 'NAVIMAP Pro (Acceso Completo)';
+        }
+
+        // Color de borde de la tarjeta
+        Color borderCol = isPro ? Colors.amber : DesignSystem.outline;
+        if (isHlg) {
+          borderCol = const Color(0xFF00E676); // verde HLG
+        }
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: Colors.white.withValues(alpha: 0.02),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+            side: BorderSide(
+              color: borderCol,
+              width: isPro ? 1.5 : 0.5,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(DesignSystem.spacingMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isPro ? Icons.star_rounded : Icons.lock_person_rounded,
+                      color: isHlg ? const Color(0xFF00E676) : (isPro ? Colors.amber : Colors.white54),
+                      size: 24,
+                    ),
+                    const SizedBox(width: DesignSystem.spacingSm),
+                    Expanded(
+                      child: Text(
+                        titleText,
+                        style: GoogleFonts.spaceGrotesk(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (isPro)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isHlg ? const Color(0xFF00E676).withValues(alpha: 0.2) : Colors.amber.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: isHlg ? const Color(0xFF00E676) : Colors.amber, width: 0.5),
+                        ),
+                        child: Text(
+                          isHlg ? 'HLG CORPO' : 'PRO',
+                          style: TextStyle(
+                            color: isHlg ? const Color(0xFF00E676) : Colors.amber,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: DesignSystem.spacingSm),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      if (isHlg) ...[
+                        const TextSpan(
+                          text: 'Dispones acceso corporativo ilimitado provisto y gestionado directamente por Hacienda la Gloria, gracias al ingeniero Adan Arias.',
+                        ),
+                        const WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 4.0),
+                            child: Icon(
+                              Icons.water_drop,
+                              size: 13,
+                              color: Color(0xFF00B0FF),
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        TextSpan(
+                          text: isPro
+                              ? 'Dispones de importaciones GeoPDF ilimitadas y descargas de mapas satelitales habilitadas.'
+                              : 'Límite de 3 GeoPDFs en biblioteca. La descarga de mapas satelitales offline requiere suscripción.',
+                        ),
+                      ],
+                    ],
+                  ),
+                  style: DesignSystem.bodySm.copyWith(color: Colors.white54),
+                ),
+                if (!isPro) ...[
+                  const SizedBox(height: DesignSystem.spacingMd),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Botón nativo de Play Store (visible en Android)
+                      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+                        ValueListenableBuilder<bool>(
+                          valueListenable: BillingService().isPurchasePending,
+                          builder: (context, isPending, _) {
+                            return ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                                foregroundColor: Colors.black,
+                                minimumSize: const Size(double.infinity, 40),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                                ),
+                              ),
+                              icon: isPending 
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                  )
+                                : const Icon(Icons.shopping_bag_outlined, size: 18),
+                              label: Text(
+                                isPending ? 'PROCESANDO...' : 'Suscribirse en Play Store',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                              onPressed: isPending ? null : () async {
+                                try {
+                                    await BillingService().buySubscription();
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+                                          backgroundColor: DesignSystem.error,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: DesignSystem.spacingSm),
+                      ],
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: DesignSystem.secondary,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(0, 38),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    DesignSystem.radiusDefault,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () => _showActivationDialog(context),
+                              child: const Text(
+                                'Activar con Código',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: DesignSystem.spacingSm),
+                          Expanded(
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white70,
+                                minimumSize: const Size(0, 38),
+                              ),
+                              onPressed: () => _showPaymentInstructions(context),
+                              child: const Text(
+                                'Obtener Código',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showActivationDialog(BuildContext context) {
+    final codeController = TextEditingController();
+    bool isDialogLoading = false;
+    String? dialogError;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: DesignSystem.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                side: const BorderSide(color: DesignSystem.outline),
+              ),
+              title: Text(
+                'Activar NAVIMAP Pro',
+                style: GoogleFonts.spaceGrotesk(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Introduce tu código único de activación para desbloquear el plan Pro.',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                  const SizedBox(height: DesignSystem.spacingMd),
+                  TextField(
+                    controller: codeController,
+                    textCapitalization: TextCapitalization.characters,
+                    style: GoogleFonts.spaceGrotesk(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'CÓDIGO DE ACTIVACIÓN',
+                      hintStyle: const TextStyle(color: Colors.white24, letterSpacing: 0, fontSize: 12),
+                      filled: true,
+                      fillColor: DesignSystem.surfaceContainer,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                        borderSide: const BorderSide(color: DesignSystem.outline),
+                      ),
+                    ),
+                  ),
+                  if (dialogError != null) ...[
+                    const SizedBox(height: DesignSystem.spacingSm),
+                    Text(
+                      dialogError!,
+                      style: const TextStyle(color: DesignSystem.error, fontSize: 12),
+                    ),
+                  ],
+
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDialogLoading ? null : () => Navigator.pop(context),
+                  child: const Text('CANCELAR'),
+                ),
+                isDialogLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: DesignSystem.secondary),
+                        ),
+                      )
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: DesignSystem.secondary,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () async {
+                          final code = codeController.text.trim();
+                          if (code.isEmpty) {
+                            setDialogState(() {
+                              dialogError = 'El código no puede estar vacío.';
+                            });
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isDialogLoading = true;
+                            dialogError = null;
+                          });
+
+                          try {
+                            final user = AuthService().currentUser;
+                            if (user == null) {
+                              throw Exception('Inicia sesión para registrar el código.');
+                            }
+
+                            final success = await AccessService().registerAccessCode(user.uid, code);
+                            if (success) {
+                              // Actualizar el plan reactivamente
+                              SubscriptionService().updateSubscriptionState('pro', true);
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('¡Plan Pro activado exitosamente!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } else {
+                              setDialogState(() {
+                                dialogError = 'Código inválido o ya utilizado.';
+                              });
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              dialogError = e.toString().replaceAll('Exception: ', '');
+                            });
+                          } finally {
+                            setDialogState(() {
+                              isDialogLoading = false;
+                            });
+                          }
+                        },
+                        child: const Text('ACTIVAR'),
+                      ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showPaymentInstructions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: DesignSystem.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+            side: const BorderSide(color: DesignSystem.outline),
+          ),
+          title: Text(
+            'Obtener NAVIMAP Pro',
+            style: GoogleFonts.spaceGrotesk(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'El plan Pro requiere una licencia comercial o un código único de acceso. Puedes conseguirlo de las siguientes maneras:',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: DesignSystem.spacingMd),
+              const Text(
+                '1. Código Corporativo:\nContacta al departamento de sistemas o administrador de GIS de tu empresa para que te asigne una licencia.',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              const SizedBox(height: DesignSystem.spacingSm),
+              const Text(
+                '2. Pago Web / En Línea:\nIngresa a navimap.com/suscripcion para pagar de forma segura con tarjeta de crédito, Apple Pay o Google Pay, y generar tu código de activación instantáneo.',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('ENTENDIDO'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showDownloadDialog() {
@@ -365,6 +775,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
+          _buildSettingsHeader('SUSCRIPCIÓN'),
+          _buildSubscriptionCard(context),
           _buildSettingsHeader('SISTEMA'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -476,7 +888,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             Icons.chevron_right,
                                             color: Colors.white54,
                                           )),
-                              onTap: isDownloading ? null : _showDownloadDialog,
+                              onTap: isDownloading
+                                  ? null
+                                  : () {
+                                      final isPro = SubscriptionService().isPro;
+                                      if (!isPro) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            backgroundColor: DesignSystem.surface,
+                                            title: Row(
+                                              children: [
+                                                const Icon(Icons.star_rounded, color: Colors.amber),
+                                                const SizedBox(width: DesignSystem.spacingSm),
+                                                Text(
+                                                  'Plan Pro Requerido',
+                                                  style: GoogleFonts.spaceGrotesk(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            content: const Text(
+                                              'La descarga de mapas satelitales para uso offline está reservada para usuarios Pro. '
+                                              'Contacta a tu administrador para actualizar tu plan y desbloquear esta función.',
+                                              style: TextStyle(color: Colors.white70),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context),
+                                                child: const Text('ENTENDIDO'),
+                                              ),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: DesignSystem.secondary,
+                                                  foregroundColor: Colors.white,
+                                                ),
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                  _showActivationDialog(context);
+                                                },
+                                                child: const Text('TENGO UN CÓDIGO'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      } else {
+                                        _showDownloadDialog();
+                                      }
+                                    },
                             ),
                             if (isDownloading) ...[
                               Padding(
@@ -504,6 +965,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                   },
                 );
+              },
+            ),
+          ),
+          _buildSettingsHeader('CUENTA'),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.white.withValues(alpha: 0.02),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+              side: const BorderSide(color: DesignSystem.outline, width: 0.5),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              leading: const Icon(
+                Icons.logout_rounded,
+                color: Colors.redAccent,
+              ),
+              title: const Text(
+                'Cerrar Sesión',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+              subtitle: const Padding(
+                padding: EdgeInsets.only(top: 4.0),
+                child: Text(
+                  'Cierra tu sesión de usuario en este dispositivo.',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: Colors.white24,
+              ),
+              onTap: () async {
+                // 1. Limpiar caché de la licencia local
+                await AccessService().clearLocalCache();
+                // 2. Resetear estado de suscripción en memoria
+                SubscriptionService().updateSubscriptionState('free', false);
+                // 3. Cerrar sesión en Firebase
+                await AuthService().signOut();
+                // 4. Redirigir al inicio limpiando la pila
+                if (context.mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                }
               },
             ),
           ),

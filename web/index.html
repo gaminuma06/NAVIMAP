@@ -120,7 +120,12 @@
           const shouldMute = args.some(arg => {
             if (!arg) return false;
             const str = typeof arg === 'string' ? arg : String(arg);
-            return str.indexOf('_handledContextLostEvent') !== -1;
+            return str.indexOf('_handledContextLostEvent') !== -1 ||
+                   str.indexOf('[GSI_') !== -1 ||
+                   str.indexOf('gapi.client') !== -1 ||
+                   str.indexOf('google_sign_in') !== -1 ||
+                   str.indexOf("signIn' method is discouraged") !== -1 ||
+                   str.indexOf("renderButton' instead") !== -1;
           });
           if (shouldMute) return;
           original.apply(console, args);
@@ -177,6 +182,7 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
+  <meta name="google-signin-client_id" content="776067923020-6rko5mdelctcenip3ci9msv565lkbfpq.apps.googleusercontent.com">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">

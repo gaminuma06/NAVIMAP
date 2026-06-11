@@ -51,6 +51,12 @@ dependencies:
   flutter_map_cancellable_tile_provider: ^3.0.2
   share_plus: ^10.1.0
   http: ^1.6.0
+  firebase_core: 2.15.0
+  firebase_auth: 4.7.0
+  cloud_firestore: 4.8.0
+  google_sign_in: 6.1.4
+  shared_preferences: 2.2.0
+  in_app_purchase: ^3.2.0
 
 dev_dependencies:
   flutter_test:
