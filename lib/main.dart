@@ -34,18 +34,24 @@ void main() async {
   // Inicializar servicio de compras (Google Play Store)
   BillingService().initialize();
 
-  // Interceptar y silenciar errores de aserción del motor web de Flutter (window.dart)
+  // Interceptar y silenciar errores del motor web de Flutter y de interoperabilidad JS
   FlutterError.onError = (FlutterErrorDetails details) {
     final exception = details.exception;
-    if (exception is AssertionError && exception.toString().contains('window.dart')) {
-      // Ignorar esta aserción específica del motor web
+    final excStr = exception.toString();
+    if (excStr.contains('window.dart') || 
+        exception.runtimeType.toString() == 'LegacyJavaScriptObject' ||
+        excStr.contains('LegacyJavaScriptObject')) {
+      // Ignorar de manera segura errores del motor web y de JS interop
       return;
     }
     FlutterError.presentError(details);
   };
 
   PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
-    if (error is AssertionError && error.toString().contains('window.dart')) {
+    final errStr = error.toString();
+    if (errStr.contains('window.dart') || 
+        error.runtimeType.toString() == 'LegacyJavaScriptObject' ||
+        errStr.contains('LegacyJavaScriptObject')) {
       // Ignorar de manera segura en el despachador de la plataforma
       return true;
     }
