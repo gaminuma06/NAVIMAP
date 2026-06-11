@@ -585,7 +585,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             : ValueListenableBuilder<String>(
                 valueListenable: SubscriptionService().planNotifier,
                 builder: (context, plan, _) {
-                  final isProOrHlg = plan == 'pro' || plan.toLowerCase() == 'hlg';
+                  final isProOrHlg = plan.toLowerCase() == 'pro' || plan.toLowerCase() == 'hlg';
                   return Text(
                     'NAVIMAP',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(

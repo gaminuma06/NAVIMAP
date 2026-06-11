@@ -10,7 +10,7 @@ class SubscriptionService {
   final ValueNotifier<bool> activeNotifier = ValueNotifier<bool>(false);
 
   String get currentPlan => planNotifier.value;
-  bool get isPro => planNotifier.value == 'pro' || planNotifier.value.toLowerCase() == 'hlg';
+  bool get isPro => planNotifier.value.toLowerCase() == 'pro' || planNotifier.value.toLowerCase() == 'hlg';
   bool get isActive => activeNotifier.value;
 
   Future<void> loadSavedSubscription() async {
@@ -22,7 +22,7 @@ class SubscriptionService {
     activeNotifier.value = savedActive;
 
     // Check if we should celebrate this plan (if it's pro/hlg and has never been celebrated on this device)
-    if (savedActive && (savedPlan == 'pro' || savedPlan.toLowerCase() == 'hlg')) {
+    if (savedActive && (savedPlan.toLowerCase() == 'pro' || savedPlan.toLowerCase() == 'hlg')) {
       final key = 'navimap_celebrated_${savedPlan.toLowerCase()}';
       final celebrated = prefs.getBool(key) ?? false;
       if (!celebrated) {
@@ -40,7 +40,7 @@ class SubscriptionService {
     planNotifier.value = plan;
     activeNotifier.value = active;
 
-    if (active && (plan == 'pro' || plan.toLowerCase() == 'hlg')) {
+    if (active && (plan.toLowerCase() == 'pro' || plan.toLowerCase() == 'hlg')) {
       final prefs = await SharedPreferences.getInstance();
       final key = 'navimap_celebrated_${plan.toLowerCase()}';
       final celebrated = prefs.getBool(key) ?? false;
