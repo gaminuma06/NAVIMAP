@@ -346,15 +346,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               throw Exception('Inicia sesión para registrar el código.');
                             }
 
-                            final success = await AccessService().registerAccessCode(user.uid, code);
-                            if (success) {
+                            final registeredPlan = await AccessService().registerAccessCode(user.uid, code);
+                            if (registeredPlan != null) {
                               // Actualizar el plan reactivamente
-                              SubscriptionService().updateSubscriptionState('pro', true);
+                              SubscriptionService().updateSubscriptionState(registeredPlan, true);
                               if (context.mounted) {
                                 Navigator.pop(context);
+                                final isHlg = registeredPlan.toLowerCase() == 'hlg';
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('¡Plan Pro activado exitosamente!'),
+                                  SnackBar(
+                                    content: Text(isHlg 
+                                      ? '¡Acceso Hacienda La Gloria activado exitosamente!' 
+                                      : '¡Plan Pro activado exitosamente!'),
                                     backgroundColor: Colors.green,
                                   ),
                                 );

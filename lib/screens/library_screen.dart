@@ -16,8 +16,6 @@ import '../services/layer_store.dart';
 import '../services/user_location_service.dart';
 import '../services/georeference_service.dart';
 import '../services/subscription_service.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
-import '../services/billing_service.dart';
 import 'dart:async';
 
 class MapStore {
@@ -257,10 +255,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _showCelebrationDialog(String plan) {
-    final isHlg = plan.toLowerCase() == 'hlg';
-    if (isHlg) {
+    final planLower = plan.toLowerCase();
+    if (planLower == 'hlg') {
       _showHlgCelebrationDialog();
-    } else {
+    } else if (planLower == 'pro') {
       _showProCelebrationDialog();
     }
   }
@@ -1093,44 +1091,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildBenefitRow({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Colors.amber, size: 20),
-        const SizedBox(width: DesignSystem.spacingMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                description,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11,
-                  height: 1.3,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

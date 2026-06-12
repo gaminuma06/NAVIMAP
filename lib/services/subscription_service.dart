@@ -20,46 +20,22 @@ class SubscriptionService {
 
     planNotifier.value = savedPlan;
     activeNotifier.value = savedActive;
-
-    // Check if we should celebrate this plan (if it's pro/hlg and has never been celebrated on this device)
-    if (savedActive && (savedPlan.toLowerCase() == 'pro' || savedPlan.toLowerCase() == 'hlg')) {
-      final key = 'navimap_celebrated_${savedPlan.toLowerCase()}';
-      final celebrated = prefs.getBool(key) ?? false;
-      if (!celebrated) {
-        celebrationPending = true;
-      }
-    }
   }
 
   bool celebrationPending = false;
 
-  void updateSubscriptionState(String plan, bool active) async {
-    final String oldPlan = planNotifier.value;
+  void updateSubscriptionState(String plan, bool active) {
+    final String oldPlan = planNotifier.value.toLowerCase();
     final bool oldActive = activeNotifier.value;
 
     planNotifier.value = plan;
     activeNotifier.value = active;
 
+    // Trigger celebration when transitioning from non-active or a different plan to Pro or HLG
     if (active && (plan.toLowerCase() == 'pro' || plan.toLowerCase() == 'hlg')) {
-      final prefs = await SharedPreferences.getInstance();
-      final key = 'navimap_celebrated_${plan.toLowerCase()}';
-      final celebrated = prefs.getBool(key) ?? false;
-
-      if (!celebrated || !oldActive || oldPlan == 'free') {
+      if (!oldActive || oldPlan != plan.toLowerCase()) {
         celebrationPending = true;
-        await prefs.setBool(key, true);
-
-        // Reset the other plan's celebrated flag so if they switch plans they see the new celebration
-        if (plan.toLowerCase() == 'pro') {
-          await prefs.remove('navimap_celebrated_hlg');
-        } else if (plan.toLowerCase() == 'hlg') {
-          await prefs.remove('navimap_celebrated_pro');
-        }
       }
-    } else if (plan == 'free' || !active) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('navimap_celebrated_pro');
-      await prefs.remove('navimap_celebrated_hlg');
     }
   }
 }

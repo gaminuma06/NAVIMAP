@@ -142,7 +142,7 @@ class AccessService {
         });
   }
 
-  Future<bool> registerAccessCode(String uid, String code) async {
+  Future<String?> registerAccessCode(String uid, String code) async {
     final prefs = await SharedPreferences.getInstance();
     final cleanCode = code.trim().toUpperCase();
 
@@ -156,7 +156,7 @@ class AccessService {
       final codeSnap = await FirebaseFirestore.instance.collection('accessCodes').doc(cleanCode).get();
       
       if (!codeSnap.exists) {
-        return false; // Código no existe
+        return null; // Código no existe
       }
 
       final codeData = codeSnap.data()!;
@@ -165,11 +165,11 @@ class AccessService {
       final String plan = codeData['plan'] ?? 'free';
 
       if (!active) {
-        return false; // Código inactivo
+        return null; // Código inactivo
       }
 
       if (usedBy != null && usedBy != uid) {
-        return false; // Código ya utilizado por otro usuario
+        return null; // Código ya utilizado por otro usuario
       }
 
       // 2. Asociar el código al usuario en Firestore (Transacción o Lote para atomicidad)
@@ -203,7 +203,7 @@ class AccessService {
       await prefs.setString(_keyCachedPlan, plan);
       await prefs.setString(_keyCachedCode, cleanCode);
 
-      return true;
+      return plan;
     } catch (e) {
       debugPrint('Error registrando código de acceso: $e');
       rethrow;

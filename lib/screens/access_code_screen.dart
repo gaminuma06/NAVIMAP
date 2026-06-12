@@ -34,8 +34,8 @@ class _AccessCodeScreenState extends State<AccessCodeScreen> {
         throw Exception('No se encontró una sesión activa.');
       }
 
-      final success = await AccessService().registerAccessCode(user.uid, code);
-      if (success) {
+      final registeredPlan = await AccessService().registerAccessCode(user.uid, code);
+      if (registeredPlan != null) {
         if (mounted) {
           // Redirigir a la pantalla principal
           Navigator.pushReplacementNamed(context, '/');

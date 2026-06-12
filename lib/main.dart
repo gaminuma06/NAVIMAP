@@ -11,7 +11,6 @@ import 'screens/settings_screen.dart';
 import 'screens/layer_objects_screen.dart';
 import 'screens/map_layer_library_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/access_code_screen.dart';
 import 'screens/access_denied_screen.dart';
 import 'services/auth_service.dart';
 import 'services/access_service.dart';
