@@ -104,6 +104,7 @@ class LayerListItem extends StatelessWidget {
 
             // Options Icon with PopupMenu
             PopupMenuButton<String>(
+              tooltip: '',
               icon: const Icon(Icons.more_vert, color: Colors.white54),
               color: DesignSystem.surfaceContainer,
               shape: RoundedRectangleBorder(

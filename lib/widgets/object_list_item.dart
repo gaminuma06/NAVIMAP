@@ -77,6 +77,7 @@ class ObjectListItem extends StatelessWidget {
 
             // Options Icon with PopupMenu
             PopupMenuButton<String>(
+              tooltip: '',
               icon: const Icon(Icons.more_horiz, color: Colors.white38),
               color: DesignSystem.surfaceContainer,
               shape: RoundedRectangleBorder(

@@ -567,6 +567,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: '',
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         surfaceTintColor: Colors.transparent,
         title: _isSearching
             ? TextField(
