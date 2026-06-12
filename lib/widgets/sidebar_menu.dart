@@ -26,7 +26,13 @@ class _SidebarMenuState extends State<SidebarMenu> {
       '5. MENORES DE EDAD\n'
       'La aplicación no recopila ni solicita deliberadamente datos de menores de edad. Su uso es meramente profesional/técnico.\n\n'
       '6. MODIFICACIONES\n'
-      'El propietario se reserva el derecho de actualizar esta política para cumplir con regulaciones legales y mejoras de seguridad. Se recomienda consultar esta sección periódicamente.';
+      'El propietario se reserva el derecho de actualizar esta política para cumplir con regulaciones legales y mejoras de seguridad. Se recomienda consultar esta sección periódicamente.\n\n'
+      '7. SUSCRIPCIONES Y PAGOS RECURRENTES\n'
+      'Las compras y suscripciones de NAVIMAP Pro se gestionan a través de la tienda oficial (Google Play Store). El cobro se realiza mensualmente a la tarifa vigente. La suscripción se renovará automáticamente al final de cada periodo mensual a menos que desactives la renovación automática en la configuración de suscripciones de Google Play al menos 24 horas antes del fin del periodo actual. No se realizan reembolsos por periodos parciales.\n\n'
+      '8. CÓDIGOS DE ACCESO Y PROMOCIONES\n'
+      'Los códigos de acceso único de NAVIMAP (incluyendo planes corporativos como HLG y códigos promocionales) son personales, intransferibles y de único uso. Un código solo puede activarse en una cuenta a la vez. El titular se reserva el derecho de revocar o modificar códigos si se detecta un uso indebido o fraudulento de los mismos.\n\n'
+      '9. ELIMINACIÓN DE CUENTA Y DATOS\n'
+      'El usuario puede realizar la eliminación definitiva de su cuenta de usuario y de todos sus datos asociados directamente desde la sección de Configuración de la aplicación en cualquier momento.';
 
   final String _ownershipText =
       'PROPIEDAD INTELECTUAL Y LICENCIA\n\n'

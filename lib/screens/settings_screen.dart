@@ -10,6 +10,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import '../services/billing_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -1024,9 +1026,133 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton(
+              onPressed: () => _showDeleteAccountConfirmation(context),
+              child: const Text(
+                'Eliminar Cuenta y Datos',
+                style: TextStyle(
+                  color: Colors.white24,
+                  fontSize: 12,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
+  }
+
+  void _showDeleteAccountConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: DesignSystem.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+            side: const BorderSide(color: DesignSystem.outline),
+          ),
+          title: Text(
+            'Eliminar Cuenta',
+            style: GoogleFonts.spaceGrotesk(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            '¿Estás completamente seguro de que deseas eliminar tu cuenta? Esta acción borrará de forma permanente tu perfil y todos tus mapas guardados en este dispositivo. Esta acción es irreversible.',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('CANCELAR'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignSystem.error,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _deleteAccount(context);
+              },
+              child: const Text('ELIMINAR MI CUENTA'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteAccount(BuildContext context) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final uid = user.uid;
+        
+        // 1. Borrar documento de Firestore y limpiar cache local
+        await AccessService().clearLocalCache();
+        SubscriptionService().updateSubscriptionState('free', false);
+        
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+        } catch (e) {
+          debugPrint('Error eliminando doc de Firestore: $e');
+        }
+
+        // 2. Borrar de Firebase Auth
+        await user.delete();
+
+        // 3. Cerrar sesión
+        await AuthService().signOut();
+
+        if (context.mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tu cuenta ha sido eliminada exitosamente.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Por seguridad, por favor cierra sesión e inicia sesión de nuevo para poder eliminar tu cuenta.'),
+              backgroundColor: DesignSystem.error,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar la cuenta: ${e.message}'),
+              backgroundColor: DesignSystem.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: DesignSystem.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSettingsHeader(String title) {
