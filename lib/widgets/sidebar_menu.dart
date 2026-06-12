@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/design_system.dart';
 
 class SidebarMenu extends StatefulWidget {
@@ -116,7 +117,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
                           });
                         },
                       ),
-                      if (_isPoliciesExpanded)
+                      if (_isPoliciesExpanded) ...[
                         GestureDetector(
                           onTap: () {
                             setState(() {
@@ -124,11 +125,9 @@ class _SidebarMenuState extends State<SidebarMenu> {
                             });
                           },
                           child: Container(
-                            constraints: const BoxConstraints(maxHeight: 250),
-                            padding: const EdgeInsets.only(
-                              left: DesignSystem.spacingMd,
-                              right: DesignSystem.spacingMd,
-                              bottom: DesignSystem.spacingMd,
+                            constraints: const BoxConstraints(maxHeight: 220),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DesignSystem.spacingMd,
                             ),
                             child: SingleChildScrollView(
                               child: Text(
@@ -141,6 +140,21 @@ class _SidebarMenuState extends State<SidebarMenu> {
                             ),
                           ),
                         ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: DesignSystem.spacingSm, top: DesignSystem.spacingSm),
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: DesignSystem.primary,
+                            ),
+                            icon: const Icon(Icons.open_in_browser_rounded, size: 16),
+                            label: const Text(
+                              'VER POLÍTICA ONLINE COMPLETA',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                            ),
+                            onPressed: _launchPrivacyPolicyUrl,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -227,5 +241,23 @@ class _SidebarMenuState extends State<SidebarMenu> {
         ],
       ),
     );
+  }
+
+  Future<void> _launchPrivacyPolicyUrl() async {
+    final Uri url = Uri.parse('https://gaminuma06.github.io/navimap-privacy-policy/');
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw Exception('No se pudo abrir el enlace.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al abrir la política online: $e'),
+            backgroundColor: DesignSystem.error,
+          ),
+        );
+      }
+    }
   }
 }
