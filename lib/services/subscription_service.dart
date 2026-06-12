@@ -28,14 +28,15 @@ class SubscriptionService {
     final String oldPlan = planNotifier.value.toLowerCase();
     final bool oldActive = activeNotifier.value;
 
-    planNotifier.value = plan;
-    activeNotifier.value = active;
-
     // Trigger celebration when transitioning from non-active or a different plan to Pro or HLG
+    // We compute this BEFORE updating the notifiers to avoid race conditions with synchronous listeners
     if (active && (plan.toLowerCase() == 'pro' || plan.toLowerCase() == 'hlg')) {
       if (!oldActive || oldPlan != plan.toLowerCase()) {
         celebrationPending = true;
       }
     }
+
+    planNotifier.value = plan;
+    activeNotifier.value = active;
   }
 }
