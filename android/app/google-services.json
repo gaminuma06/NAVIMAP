@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "776067923020-2v0in2t524hc9pt7pfs5coq1fpe4vvu4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.navimap",
+            "certificate_hash": "ef9f8b2535e4ea4e9998c868550d3737a6491539"
+          }
+        },
+        {
           "client_id": "776067923020-6rko5mdelctcenip3ci9msv565lkbfpq.apps.googleusercontent.com",
           "client_type": 3
         }
