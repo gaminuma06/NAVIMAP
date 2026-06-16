@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/design_system.dart';
 import '../services/auth_service.dart';
 import '../services/access_service.dart';
+import '../services/subscription_service.dart';
 
 class AccessCodeScreen extends StatefulWidget {
   const AccessCodeScreen({super.key});
@@ -36,6 +37,8 @@ class _AccessCodeScreenState extends State<AccessCodeScreen> {
 
       final registeredPlan = await AccessService().registerAccessCode(user.uid, code);
       if (registeredPlan != null) {
+        // Actualizar el plan reactivamente con la bandera de celebración activa para la pantalla de destino
+        SubscriptionService().updateSubscriptionState(registeredPlan, true, enableCelebration: true);
         if (mounted) {
           // Redirigir a la pantalla principal
           Navigator.pushReplacementNamed(context, '/');
@@ -48,7 +51,11 @@ class _AccessCodeScreenState extends State<AccessCodeScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        String errorMsg = e.toString().replaceAll('Exception: ', '');
+        if (errorMsg.contains('permission-denied') || errorMsg.contains('permission_denied') || errorMsg.contains('insufficient permissions')) {
+          errorMsg = 'Error de permisos de Firebase. Asegúrate de haber publicado las Reglas de Seguridad en tu consola de Firestore (pestaña Rules) según la guía de configuración.';
+        }
+        _errorMessage = errorMsg;
       });
     } finally {
       if (mounted) {

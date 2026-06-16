@@ -38,7 +38,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Map<String, dynamic> && args['autoOpenActivation'] == true) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showActivationDialog(context);
+          if (mounted) {
+            _showActivationDialog(context);
+          }
         });
       }
     }
@@ -350,10 +352,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                             final registeredPlan = await AccessService().registerAccessCode(user.uid, code);
                             if (registeredPlan != null) {
-                              // Actualizar el plan reactivamente
-                              SubscriptionService().updateSubscriptionState(registeredPlan, true);
                               if (context.mounted) {
                                 Navigator.pop(context);
+                              }
+                              // Actualizar el plan reactivamente sin activar el banner global en segundo plano
+                              SubscriptionService().updateSubscriptionState(registeredPlan, true, enableCelebration: false);
+                              
+                              if (context.mounted) {
+                                // Mostrar la celebración localmente en el contexto de configuración
+                                _showCelebrationDialog(context, registeredPlan);
+                                
                                 final isHlg = registeredPlan.toLowerCase() == 'hlg';
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -370,8 +378,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               });
                             }
                           } catch (e) {
+                            String errorMsg = e.toString().replaceAll('Exception: ', '');
+                            if (errorMsg.contains('permission-denied') || errorMsg.contains('permission_denied') || errorMsg.contains('insufficient permissions')) {
+                              errorMsg = 'Error de permisos de Firebase. Asegúrate de haber publicado las Reglas de Seguridad en tu consola de Firestore (pestaña Rules) según la guía de configuración.';
+                            }
                             setDialogState(() {
-                              dialogError = e.toString().replaceAll('Exception: ', '');
+                              dialogError = errorMsg;
                             });
                           } finally {
                             setDialogState(() {
@@ -1094,6 +1106,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
+        // Validar si la sesión es reciente antes de proceder con el borrado de datos
+        final lastSignIn = user.metadata.lastSignInTime;
+        if (lastSignIn != null) {
+          final diff = DateTime.now().difference(lastSignIn);
+          if (diff.inMinutes > 5) {
+            throw FirebaseAuthException(
+              code: 'requires-recent-login',
+              message: 'Por seguridad, por favor cierra sesión e inicia sesión de nuevo para poder eliminar tu cuenta.',
+            );
+          }
+        }
+
         final uid = user.uid;
         
         // 1. Borrar documento de Firestore y limpiar cache local
@@ -1104,6 +1128,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           await FirebaseFirestore.instance.collection('users').doc(uid).delete();
         } catch (e) {
           debugPrint('Error eliminando doc de Firestore: $e');
+          String errorMsg = e.toString();
+          if (errorMsg.contains('permission-denied') || errorMsg.contains('permission_denied') || errorMsg.contains('insufficient permissions')) {
+            throw Exception('Error de permisos al borrar los datos de la base de datos. Asegúrate de haber publicado las Reglas de Seguridad en tu consola de Firestore.');
+          }
+          rethrow;
         }
 
         // 2. Borrar de Firebase Auth
@@ -1163,6 +1192,284 @@ class _SettingsScreenState extends State<SettingsScreen> {
         style: DesignSystem.labelCaps.copyWith(
           color: DesignSystem.primary,
           fontSize: 10,
+        ),
+      ),
+    );
+  }
+
+  void _showCelebrationDialog(BuildContext context, String plan) {
+    final planLower = plan.toLowerCase();
+    if (planLower == 'hlg') {
+      _showHlgCelebrationDialog(context);
+    } else if (planLower == 'pro') {
+      _showProCelebrationDialog(context);
+    }
+  }
+
+  void _showHlgCelebrationDialog(BuildContext context) {
+    final themeColor = const Color(0xFF00E676); // Verde HLG
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF131313),
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.6),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColor.withValues(alpha: 0.15),
+                blurRadius: 28,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(DesignSystem.spacingLg),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: themeColor.withValues(alpha: 0.35),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeColor.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.domain_verification_rounded,
+                  color: themeColor,
+                  size: 56,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: themeColor.withValues(alpha: 0.25), width: 0.8),
+                ),
+                child: Text(
+                  'ACCESO CORPORATIVO HLG',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: themeColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                '¡Bienvenido a NaviMap!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.spaceGrotesk(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(
+                      text: 'Gracias al Ingeniero Adan Arias y a la provisión directa de Hacienda La Gloria, tienes acceso ilimitado a todas las herramientas geográficas, capas y mapas georreferenciados de la plataforma.',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        height: 1.5,
+                      ),
+                    ),
+                    const WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 4.0),
+                        child: Icon(
+                          Icons.water_drop,
+                          size: 13,
+                          color: Color(0xFF00B0FF),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'COMENZAR',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: Colors.black.withValues(alpha: 0.8),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showProCelebrationDialog(BuildContext context) {
+    final themeColor = const Color(0xFFFFD700); // Dorado
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF131313),
+            borderRadius: BorderRadius.circular(DesignSystem.radiusLg),
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: themeColor.withValues(alpha: 0.15),
+                blurRadius: 24,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(DesignSystem.spacingLg),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: themeColor.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeColor.withValues(alpha: 0.05),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.workspace_premium_rounded,
+                  color: themeColor,
+                  size: 56,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: themeColor.withValues(alpha: 0.3), width: 0.8),
+                ),
+                child: Text(
+                  'NAVIMAP PRO',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: themeColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '¡Bienvenido a NAVIMAP Pro!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.spaceGrotesk(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '¡Gracias por suscribirte! Ahora tienes acceso a todas las herramientas avanzadas y mapas ilimitados.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'COMENZAR',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: Colors.black.withValues(alpha: 0.8),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

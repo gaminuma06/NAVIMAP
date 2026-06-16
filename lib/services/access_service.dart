@@ -57,6 +57,14 @@ class AccessService {
           return AccessStatus(active: active, plan: plan);
         } else {
           // Usuario no registrado en la base de datos aún -> Plan gratuito por defecto
+          // Lo creamos en Firestore de forma automática
+          await FirebaseFirestore.instance.collection('users').doc(uid).set({
+            'email': AuthService().currentUser?.email ?? '',
+            'plan': 'free',
+            'active': true,
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
           await prefs.setString(_keyLastCheck, DateTime.now().toIso8601String());
           await prefs.setBool(_keyCachedActive, true);
           await prefs.setString(_keyCachedPlan, 'free');
@@ -129,6 +137,14 @@ class AccessService {
             return AccessStatus(active: active, plan: plan);
           } else {
             // Usuario no creado en BD aún -> plan gratuito por defecto
+            // Lo creamos en Firestore de forma automática asíncrona
+            FirebaseFirestore.instance.collection('users').doc(uid).set({
+              'email': AuthService().currentUser?.email ?? '',
+              'plan': 'free',
+              'active': true,
+              'createdAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+
             prefs.setString(_keyLastCheck, DateTime.now().toIso8601String());
             prefs.setBool(_keyCachedActive, true);
             prefs.setString(_keyCachedPlan, 'free');
@@ -160,15 +176,23 @@ class AccessService {
       }
 
       final codeData = codeSnap.data()!;
-      final bool active = codeData['active'] == true;
-      final String? usedBy = codeData['usedBy'];
-      final String plan = codeData['plan'] ?? 'free';
+      
+      // Buscar campos de forma insensible a mayúsculas/minúsculas para dar soporte a ACTIVE, PLAN y USEDBY
+      final activeVal = codeData['active'] ?? codeData['ACTIVE'];
+      final bool active = activeVal == true || activeVal.toString().toLowerCase() == 'true';
+      
+      final planVal = codeData['plan'] ?? codeData['PLAN'];
+      final String plan = (planVal ?? 'free').toString().toLowerCase();
+
+      final usedByVal = codeData['usedBy'] ?? codeData['usedby'] ?? codeData['USEDBY'];
+      final String? usedBy = usedByVal?.toString();
 
       if (!active) {
         return null; // Código inactivo
       }
 
-      if (usedBy != null && usedBy != uid) {
+      final bool isUsed = usedBy != null && usedBy.isNotEmpty && usedBy != 'null';
+      if (isUsed && usedBy != uid) {
         return null; // Código ya utilizado por otro usuario
       }
 

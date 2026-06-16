@@ -423,7 +423,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                 labelText: 'Nombre de la línea',
                 labelStyle: const TextStyle(color: DesignSystem.primary),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                 ),
@@ -558,7 +558,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                 labelText: 'Nombre del polígono',
                 labelStyle: const TextStyle(color: DesignSystem.primary),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                 ),
@@ -691,7 +691,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                 labelText: 'Nombre del punto',
                 labelStyle: const TextStyle(color: DesignSystem.primary),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                 ),
@@ -835,8 +835,9 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             if (pt1['latitude'] == null ||
                 pt1['longitude'] == null ||
                 pt2['latitude'] == null ||
-                pt2['longitude'] == null)
+                pt2['longitude'] == null) {
               continue;
+            }
 
             final p1 = _mapController.camera.project(
               LatLng(pt1['latitude'] as double, pt1['longitude'] as double),
@@ -1595,7 +1596,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 6,
                           offset: const Offset(0, 3),
                         ),

@@ -36,7 +36,7 @@ class LayerListItem extends StatelessWidget {
           border: Border.all(
             color: (isActive == true)
                 ? DesignSystem.primary
-                : DesignSystem.outline.withOpacity(0.5),
+                : DesignSystem.outline.withValues(alpha: 0.5),
             width: (isActive == true) ? 1.5 : 1.0,
           ),
         ),

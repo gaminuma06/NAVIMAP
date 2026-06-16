@@ -24,19 +24,28 @@ class SubscriptionService {
 
   bool celebrationPending = false;
 
-  void updateSubscriptionState(String plan, bool active) {
+  void updateSubscriptionState(String plan, bool active, {bool enableCelebration = false}) {
     final String oldPlan = planNotifier.value.toLowerCase();
     final bool oldActive = activeNotifier.value;
 
-    // Trigger celebration when transitioning from non-active or a different plan to Pro or HLG
+    // Trigger celebration when transitioning from a non-pro plan (like 'free') to Pro or HLG
     // We compute this BEFORE updating the notifiers to avoid race conditions with synchronous listeners
-    if (active && (plan.toLowerCase() == 'pro' || plan.toLowerCase() == 'hlg')) {
-      if (!oldActive || oldPlan != plan.toLowerCase()) {
+    if (enableCelebration && active && (plan.toLowerCase() == 'pro' || plan.toLowerCase() == 'hlg')) {
+      final bool wasPro = oldActive && (oldPlan == 'pro' || oldPlan == 'hlg');
+      if (!wasPro) {
         celebrationPending = true;
       }
     }
 
     planNotifier.value = plan;
     activeNotifier.value = active;
+
+    // Guardar en caché local para mantener la persistencia al día
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('navimap_cached_plan', plan);
+      prefs.setBool('navimap_cached_active', active);
+    }).catchError((e) {
+      debugPrint('Error al actualizar cache de suscripción: $e');
+    });
   }
 }

@@ -19,39 +19,38 @@ class AccessDeniedScreen extends StatefulWidget {
 class _AccessDeniedScreenState extends State<AccessDeniedScreen> {
   bool _isChecking = false;
 
-  Future<void> _handleRetry(BuildContext context) async {
+  Future<void> _handleRetry() async {
     setState(() => _isChecking = true);
     try {
       final user = AuthService().currentUser;
       if (user != null) {
         final status = await AccessService().checkUserAccess(user.uid);
-        if (status.active && !status.requiresOnline && mounted) {
+        if (!mounted) return;
+        if (status.active && !status.requiresOnline) {
           // Si ya es válido, volver a cargar la app
           Navigator.pushReplacementNamed(context, '/');
           return;
         }
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.requiresOnline
-                  ? 'Aún no se puede establecer conexión a Internet.'
-                  : 'El acceso sigue denegado por el administrador.',
-            ),
-            backgroundColor: DesignSystem.error,
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.requiresOnline
+                ? 'Aún no se puede establecer conexión a Internet.'
+                : 'El acceso sigue denegado por el administrador.',
           ),
-        );
-      }
+          backgroundColor: DesignSystem.error,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al verificar: $e'),
-            backgroundColor: DesignSystem.error,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al verificar: $e'),
+          backgroundColor: DesignSystem.error,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isChecking = false);
@@ -59,12 +58,11 @@ class _AccessDeniedScreenState extends State<AccessDeniedScreen> {
     }
   }
 
-  Future<void> _handleLogout(BuildContext context) async {
+  Future<void> _handleLogout() async {
     await AuthService().signOut();
     await AccessService().clearLocalCache();
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/');
-    }
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, '/');
   }
 
   @override
@@ -135,7 +133,7 @@ class _AccessDeniedScreenState extends State<AccessDeniedScreen> {
                               ),
                             ),
                           ),
-                          onPressed: () => _handleRetry(context),
+                          onPressed: _handleRetry,
                           icon: const Icon(Icons.refresh),
                           label: const Text('Reintentar Validación'),
                         ),
@@ -144,7 +142,7 @@ class _AccessDeniedScreenState extends State<AccessDeniedScreen> {
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.white54,
                           ),
-                          onPressed: () => _handleLogout(context),
+                          onPressed: _handleLogout,
                           icon: const Icon(Icons.logout),
                           label: const Text('Cerrar Sesión'),
                         ),

@@ -249,7 +249,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
       service.celebrationPending = false;
       final plan = service.currentPlan;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showCelebrationDialog(plan);
+        if (!mounted) return;
+        try {
+          if (Localizations.of<MaterialLocalizations>(context, MaterialLocalizations) == null) {
+            service.celebrationPending = true;
+            return;
+          }
+          _showCelebrationDialog(plan);
+        } catch (e) {
+          debugPrint('Diferiendo el diálogo de bienvenida debido a un estado inestable: $e');
+          service.celebrationPending = true;
+        }
       });
     }
   }
@@ -552,6 +562,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (SubscriptionService().celebrationPending) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkPlanCelebration();
+      });
+    }
+
     if (!_fontsLoaded) {
       return const Scaffold(
         backgroundColor: Color(0xFF131313),
@@ -669,8 +685,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             // Tarjetas de carga primero
                             if (isMapsTab)
                               ..._loadingMaps
-                                  .map((name) => MapLoadingItem(title: name))
-                                  .toList(),
+                                  .map((name) => MapLoadingItem(title: name)),
                             // Lista normal
                             ...currentList.map((item) {
                               final String title = item['title'];
@@ -703,7 +718,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                           style: TextStyle(color: Colors.white),
                                         ),
                                         content: Text(
-                                          '¿Deseas eliminar el mapa "${title}"? Todos los datos asociados se perderán.',
+                                          '¿Deseas eliminar el mapa "$title"? Todos los datos asociados se perderán.',
                                           style: const TextStyle(
                                             color: Colors.white70,
                                           ),
@@ -754,7 +769,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                           style: TextStyle(color: Colors.white),
                                         ),
                                         content: Text(
-                                          '¿Deseas eliminar "${title}" del respaldo global? Esta acción no se puede deshacer.',
+                                          '¿Deseas eliminar "$title" del respaldo global? Esta acción no se puede deshacer.',
                                           style: const TextStyle(
                                             color: Colors.white70,
                                           ),
@@ -793,7 +808,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                   },
                                 );
                               }
-                            }).toList(),
+                            }),
                           ],
                         ),
                 ),
@@ -950,7 +965,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   hintText: 'Nombre de la capa',
                   errorText: errorText,
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
+                  fillColor: Colors.white.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                   ),
@@ -1013,7 +1028,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(DesignSystem.spacingMd),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(
                     DesignSystem.radiusDefault,
                   ),

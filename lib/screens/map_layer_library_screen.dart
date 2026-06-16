@@ -85,7 +85,7 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                   hintText: 'Nombre de la capa',
                   errorText: errorText,
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
+                  fillColor: Colors.white.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                   ),
@@ -173,7 +173,7 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                   hintText: 'Nombre de la capa',
                   errorText: errorText,
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
+                  fillColor: Colors.white.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                   ),
@@ -481,7 +481,7 @@ class _MapLayerLibraryScreenState extends State<MapLayerLibraryScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(DesignSystem.spacingMd),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(
                     DesignSystem.radiusDefault,
                   ),

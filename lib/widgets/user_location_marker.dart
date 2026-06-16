@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/design_system.dart';
 
 class UserLocationMarker extends StatelessWidget {
   final double heading;
@@ -24,9 +23,9 @@ class UserLocationMarker extends StatelessWidget {
                 height: 50 * value,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.blue.withOpacity(0.3 * (1.5 - value)),
+                  color: Colors.blue.withValues(alpha: 0.3 * (1.5 - value)),
                   border: Border.all(
-                    color: Colors.blue.withOpacity(0.5 * (1.5 - value)),
+                    color: Colors.blue.withValues(alpha: 0.5 * (1.5 - value)),
                     width: 2,
                   ),
                 ),
@@ -45,7 +44,7 @@ class UserLocationMarker extends StatelessWidget {
               border: Border.all(color: Colors.white, width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   blurRadius: 4,
                   spreadRadius: 1,
                 ),

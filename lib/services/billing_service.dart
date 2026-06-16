@@ -160,7 +160,7 @@ class BillingService {
       await prefs.setString('navimap_cached_plan', 'pro');
 
       // Actualizar el estado dinámico en memoria
-      SubscriptionService().updateSubscriptionState('pro', true);
+      SubscriptionService().updateSubscriptionState('pro', true, enableCelebration: true);
       
       return true;
     } catch (e) {

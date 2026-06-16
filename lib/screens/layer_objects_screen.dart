@@ -201,7 +201,7 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
                   hintText: 'Nombre del objeto',
                   errorText: errorText,
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
+                  fillColor: Colors.white.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                   ),
@@ -280,7 +280,7 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: otherLayers.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (context, index) =>
                       const Divider(color: Colors.white10),
                   itemBuilder: (context, lIndex) => ListTile(
                     title: Text(
@@ -518,7 +518,7 @@ class _LayerObjectsScreenState extends State<LayerObjectsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(DesignSystem.spacingMd),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(
                     DesignSystem.radiusDefault,
                   ),

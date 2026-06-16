@@ -41,7 +41,7 @@ class _MapLoadingItemState extends State<MapLoadingItem>
       decoration: BoxDecoration(
         color: DesignSystem.surfaceContainer,
         borderRadius: BorderRadius.circular(DesignSystem.radiusDefault),
-        border: Border.all(color: DesignSystem.primary.withOpacity(0.3)),
+        border: Border.all(color: DesignSystem.primary.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [

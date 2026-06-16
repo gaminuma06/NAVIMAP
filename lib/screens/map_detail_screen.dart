@@ -264,7 +264,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                 labelText: 'Nombre de la línea',
                 labelStyle: const TextStyle(color: DesignSystem.primary),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                 ),
@@ -394,7 +394,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                 labelText: 'Nombre del polígono',
                 labelStyle: const TextStyle(color: DesignSystem.primary),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                 ),
@@ -666,7 +666,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
             final pt1 = pts[i];
             final pt2 = pts[i + 1];
             if (pt1['latitude'] == null || pt1['longitude'] == null ||
-                pt2['latitude'] == null || pt2['longitude'] == null) continue;
+                pt2['latitude'] == null || pt2['longitude'] == null) {
+              continue;
+            }
             
             final p1 = _mapController.camera.project(latlong2.LatLng(
               pt1['latitude'] as double,
@@ -1038,7 +1040,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       polylines.add(
         Polyline(
           points: [..._measuringPoints, currentCenter],
-          color: DesignSystem.primary.withOpacity(0.8),
+          color: DesignSystem.primary.withValues(alpha: 0.8),
           strokeWidth: 3.5,
         ),
       );
@@ -1117,7 +1119,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                 labelText: 'Nombre del punto',
                 labelStyle: const TextStyle(color: DesignSystem.primary),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                 ),
@@ -1709,7 +1711,7 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 6,
                           offset: const Offset(0, 3),
                         ),

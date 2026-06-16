@@ -221,7 +221,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                   labelText: 'Nombre',
                   labelStyle: const TextStyle(color: Colors.white38),
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
+                  fillColor: Colors.white.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                   ),
@@ -261,7 +261,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                         labelText: 'Longitud de la línea',
                         labelStyle: const TextStyle(color: Colors.white38),
                         filled: true,
-                        fillColor: Colors.white.withOpacity(0.02),
+                        fillColor: Colors.white.withValues(alpha: 0.02),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                         ),
@@ -279,7 +279,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                     labelText: 'Unidad de medida',
                     labelStyle: const TextStyle(color: Colors.white38),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.05),
+                    fillColor: Colors.white.withValues(alpha: 0.05),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                     ),
@@ -320,7 +320,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                         labelText: 'Área del polígono',
                         labelStyle: const TextStyle(color: Colors.white38),
                         filled: true,
-                        fillColor: Colors.white.withOpacity(0.02),
+                        fillColor: Colors.white.withValues(alpha: 0.02),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                         ),
@@ -338,7 +338,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                     labelText: 'Unidad de medida',
                     labelStyle: const TextStyle(color: Colors.white38),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.05),
+                    fillColor: Colors.white.withValues(alpha: 0.05),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                     ),
@@ -374,7 +374,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                     labelText: _latLabel,
                     labelStyle: const TextStyle(color: Colors.white38),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.05),
+                    fillColor: Colors.white.withValues(alpha: 0.05),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                     ),
@@ -408,7 +408,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
                     labelText: _lonLabel,
                     labelStyle: const TextStyle(color: Colors.white38),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.05),
+                    fillColor: Colors.white.withValues(alpha: 0.05),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(DesignSystem.radiusSm),
                     ),
@@ -526,7 +526,7 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -664,7 +664,9 @@ class _ObjectAttributesScreenState extends State<ObjectAttributesScreen> {
       final p1 = points[i];
       final p2 = points[i + 1];
       if (p1['latitude'] == null || p1['longitude'] == null ||
-          p2['latitude'] == null || p2['longitude'] == null) continue;
+          p2['latitude'] == null || p2['longitude'] == null) {
+        continue;
+      }
       final lat1 = (p1['latitude'] as num).toDouble() * math.pi / 180;
       final lon1 = (p1['longitude'] as num).toDouble() * math.pi / 180;
       final lat2 = (p2['latitude'] as num).toDouble() * math.pi / 180;

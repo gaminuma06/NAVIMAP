@@ -36,7 +36,13 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow update: if request.auth != null 
                     && request.resource.data.usedBy == request.auth.uid
-                    && (resource.data.usedBy == null || resource.data.usedBy == request.auth.uid);
+                    && (
+                      !('usedBy' in resource.data) 
+                      || resource.data.usedBy == null 
+                      || resource.data.usedBy == "" 
+                      || resource.data.usedBy == "null"
+                      || resource.data.usedBy == request.auth.uid
+                    );
       allow create, delete: if false;
     }
   }

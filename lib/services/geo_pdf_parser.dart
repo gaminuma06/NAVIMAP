@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 class GeoPdfParser {
   static Map<String, dynamic>? parse(Uint8List bytes) {
@@ -47,10 +46,9 @@ class GeoPdfParser {
       }
 
       // 2. TerraGo /LGIDict -> /CTM or just simple Neatline
-      final ptMatch = RegExp(r'/Projection\s*<<[^>]*>>').firstMatch(content);
       // TerraGo uses /Neatline [ ... ] but the coordinate system could be projected.
     } catch (e) {
-      print("Error parsing GeoPDF: $e");
+      debugPrint("Error parsing GeoPDF: $e");
     }
     return null;
   }

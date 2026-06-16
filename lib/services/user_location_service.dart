@@ -22,7 +22,7 @@ class UserLocationService {
   factory UserLocationService() => _instance;
   UserLocationService._internal();
 
-  StreamController<UserLocationData> _locationController =
+  final StreamController<UserLocationData> _locationController =
       StreamController<UserLocationData>.broadcast();
   Stream<UserLocationData> get locationStream => _locationController.stream;
 

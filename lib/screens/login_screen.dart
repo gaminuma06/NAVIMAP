@@ -24,26 +24,26 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleGoogleSignIn(BuildContext context) async {
+  Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
       final user = await AuthService().signInWithGoogle();
-      if (user != null && mounted) {
+      if (!mounted) return;
+      if (user != null) {
         // Al loguearse exitosamente, el AuthWrapper de main.dart se encargará
         // de redirigir a la pantalla adecuada (AccessCode o Library).
         Navigator.pushReplacementNamed(context, '/');
       }
     } catch (e) {
-      if (mounted) {
-        final errStr = e.toString().toLowerCase();
-        if (!errStr.contains('popup_closed') && !errStr.contains('canceled')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error de inicio de sesión: $e'),
-              backgroundColor: DesignSystem.error,
-            ),
-          );
-        }
+      if (!mounted) return;
+      final errStr = e.toString().toLowerCase();
+      if (!errStr.contains('popup_closed') && !errStr.contains('canceled')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de inicio de sesión: $e'),
+            backgroundColor: DesignSystem.error,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -295,7 +295,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     elevation: 1,
                   ),
-                  onPressed: () => _handleGoogleSignIn(context),
+                  onPressed: _handleGoogleSignIn,
                   icon: Image.network(
                     'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/24px-Google_%22G%22_logo.svg.png',
                     height: 20,

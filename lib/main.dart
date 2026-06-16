@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/design_system.dart';
 import 'screens/library_screen.dart';
 import 'screens/satellite_view_screen.dart';

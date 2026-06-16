@@ -39,7 +39,7 @@ class ObjectListItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: DesignSystem.surfaceContainer,
           borderRadius: BorderRadius.circular(DesignSystem.radiusMd),
-          border: Border.all(color: DesignSystem.outline.withOpacity(0.3)),
+          border: Border.all(color: DesignSystem.outline.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
