@@ -1652,38 +1652,6 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             ),
 
           // --- BARRA INFERIOR DE ACCIONES ---
-          // ==========================================
-          // MODO CAMINATA - BOTÓN DEL MUÑEQUITO
-          // ==========================================
-          if (_isMeasuringMode)
-            Positioned(
-              bottom: 70 + (MediaQuery.of(context).padding.bottom), // Justo arriba de la regla en la barra inferior
-              left: 6,
-              child: GestureDetector(
-                onTap: _startWalkTracking,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E1E1E),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.directions_walk,
-                    color: Colors.greenAccent,
-                    size: 24,
-                  ),
-                ),
-              ),
-            ),
-          // ==========================================
 
           Positioned(
             bottom: 0,
@@ -1877,6 +1845,24 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
               ),
             ),
           ),
+
+          // ==========================================
+          // MODO CAMINATA - BOTÓN DEL MUÑEQUITO
+          // ==========================================
+          if (_isMeasuringMode)
+            Positioned(
+              bottom: 80 + (MediaQuery.of(context).padding.bottom), // Elevado para que quede flotando directamente encima de la regla
+              left: 14, // Alineación exacta vertical sobre el icono de la regla
+              child: GestureDetector(
+                onTap: _startWalkTracking,
+                child: const Icon(
+                  Icons.directions_walk,
+                  color: Colors.greenAccent,
+                  size: 28,
+                ),
+              ),
+            ),
+          // ==========================================
         ],
       ),
     );
