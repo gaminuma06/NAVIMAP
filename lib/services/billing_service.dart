@@ -105,6 +105,22 @@ class BillingService {
       try {
         targetProduct = productsList.value.firstWhere((p) => p.id == productId);
       } catch (_) {
+        if (kDebugMode) {
+          debugPrint('Modo de prueba local activo: simulando suscripción exitosa para $productId');
+          final mockPurchase = PurchaseDetails(
+            purchaseID: 'mock_sub_${DateTime.now().millisecondsSinceEpoch}',
+            productID: productId,
+            verificationData: PurchaseVerificationData(
+              localVerificationData: 'mock_local_verification',
+              serverVerificationData: 'mock_server_verification',
+              source: 'mock_source',
+            ),
+            transactionDate: DateTime.now().millisecondsSinceEpoch.toString(),
+            status: PurchaseStatus.purchased,
+          );
+          await _verifyAndApplyPurchase(mockPurchase);
+          return;
+        }
         throw Exception('El producto de suscripción no está cargado. Reintenta en unos momentos.');
       }
     }
