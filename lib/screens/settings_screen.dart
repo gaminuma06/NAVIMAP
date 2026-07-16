@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import '../services/billing_service.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
@@ -28,6 +29,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _offlineService = OfflineMapService();
   bool _didCheckArguments = false;
+  bool _isYearlySelected = true; // El plan anual es el recomendado por defecto
 
   @override
   void initState() {
@@ -160,6 +162,137 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 if (!isPro) ...[
                   const SizedBox(height: DesignSystem.spacingMd),
+                  ValueListenableBuilder<List<ProductDetails>>(
+                    valueListenable: BillingService().productsList,
+                    builder: (context, products, _) {
+                      String monthlyPrice = '\$7.49 USD';
+                      String yearlyPrice = '\$79.99 USD';
+
+                      for (var prod in products) {
+                        if (prod.id == BillingService.subscriptionMonthlyId) {
+                          monthlyPrice = prod.price;
+                        } else if (prod.id == BillingService.subscriptionYearlyId) {
+                          yearlyPrice = prod.price;
+                        }
+                      }
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: DesignSystem.spacingMd),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: DesignSystem.outline, width: 0.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _isYearlySelected = false),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: !_isYearlySelected
+                                        ? Colors.amber.withValues(alpha: 0.15)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: !_isYearlySelected ? Colors.amber : Colors.transparent,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Plan Mensual',
+                                        style: TextStyle(
+                                          color: !_isYearlySelected ? Colors.white : Colors.white70,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '$monthlyPrice / mes',
+                                        style: TextStyle(
+                                          color: !_isYearlySelected ? Colors.amber : Colors.white54,
+                                          fontSize: 10.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _isYearlySelected = true),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: _isYearlySelected
+                                        ? Colors.amber.withValues(alpha: 0.15)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: _isYearlySelected ? Colors.amber : Colors.transparent,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Plan Anual',
+                                            style: TextStyle(
+                                              color: _isYearlySelected ? Colors.white : Colors.white70,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF388E3C),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'AHORRA 10%',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 7,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '$yearlyPrice / año',
+                                        style: TextStyle(
+                                          color: _isYearlySelected ? Colors.amber : Colors.white54,
+                                          fontSize: 10.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -190,7 +323,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               onPressed: isPending ? null : () async {
                                 try {
-                                    await BillingService().buySubscription();
+                                    final chosenProductId = _isYearlySelected
+                                        ? BillingService.subscriptionYearlyId
+                                        : BillingService.subscriptionMonthlyId;
+                                    await BillingService().buySubscription(productId: chosenProductId);
                                   } catch (e) {
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(

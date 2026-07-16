@@ -15,11 +15,14 @@ class BillingService {
   InAppPurchase? get _iap => kIsWeb ? null : InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   
-  // ID de la suscripción en Google Play Console
-  static const String subscriptionId = 'navimap_pro_monthly';
+  // IDs de la suscripción en Google Play Console
+  static const String subscriptionMonthlyId = 'navimap_pro_monthly';
+  static const String subscriptionYearlyId = 'navimap_pro_yearly';
+  static const String subscriptionId = subscriptionMonthlyId; // Por compatibilidad
 
   final ValueNotifier<bool> isStoreAvailable = ValueNotifier<bool>(false);
   final ValueNotifier<ProductDetails?> proProduct = ValueNotifier<ProductDetails?>(null);
+  final ValueNotifier<List<ProductDetails>> productsList = ValueNotifier<List<ProductDetails>>([]);
   final ValueNotifier<bool> isPurchasePending = ValueNotifier<bool>(false);
 
   void initialize() async {
@@ -57,7 +60,7 @@ class BillingService {
   Future<void> queryProducts() async {
     if (kIsWeb || _iap == null) return;
     try {
-      final Set<String> ids = {subscriptionId};
+      final Set<String> ids = {subscriptionMonthlyId, subscriptionYearlyId};
       final ProductDetailsResponse response = await _iap!.queryProductDetails(ids);
       
       if (response.notFoundIDs.isNotEmpty) {
@@ -65,32 +68,49 @@ class BillingService {
       }
 
       if (response.productDetails.isNotEmpty) {
-        proProduct.value = response.productDetails.firstWhere(
-          (product) => product.id == subscriptionId,
-          orElse: () => response.productDetails.first,
-        );
+        productsList.value = response.productDetails;
+        
+        // Rellenar proProduct para compatibilidad con código antiguo (ej: upgrade dialog)
+        try {
+          proProduct.value = response.productDetails.firstWhere(
+            (product) => product.id == subscriptionMonthlyId,
+            orElse: () => response.productDetails.first,
+          );
+        } catch (_) {}
       }
     } catch (e) {
       debugPrint('Error al consultar productos de Google Play: $e');
     }
   }
 
-  Future<void> buySubscription() async {
+  Future<void> buySubscription({String productId = subscriptionMonthlyId}) async {
     if (kIsWeb || _iap == null || !isStoreAvailable.value) {
       throw Exception('La tienda de aplicaciones no está disponible en este dispositivo.');
     }
 
-    if (proProduct.value == null) {
+    ProductDetails? targetProduct;
+    try {
+      targetProduct = productsList.value.firstWhere(
+        (p) => p.id == productId,
+        orElse: () => proProduct.value?.id == productId ? proProduct.value! : responseProductPlaceholder(productId),
+      );
+    } catch (_) {
+      // Si no se encuentra en la lista actual
+    }
+
+    if (targetProduct == null) {
       isPurchasePending.value = true;
       await queryProducts();
       isPurchasePending.value = false;
-      if (proProduct.value == null) {
+      try {
+        targetProduct = productsList.value.firstWhere((p) => p.id == productId);
+      } catch (_) {
         throw Exception('El producto de suscripción no está cargado. Reintenta en unos momentos.');
       }
     }
 
     isPurchasePending.value = true;
-    final PurchaseParam purchaseParam = PurchaseParam(productDetails: proProduct.value!);
+    final PurchaseParam purchaseParam = PurchaseParam(productDetails: targetProduct);
     
     try {
       // Intentar comprar la suscripción
@@ -100,6 +120,11 @@ class BillingService {
       debugPrint('Error al iniciar compra: $e');
       rethrow;
     }
+  }
+
+  // Método auxiliar para evitar errores de tipo en caso de orElse fallidos antes de reconsultar
+  ProductDetails responseProductPlaceholder(String id) {
+    throw Exception('Producto no encontrado');
   }
 
   Future<void> _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) async {
