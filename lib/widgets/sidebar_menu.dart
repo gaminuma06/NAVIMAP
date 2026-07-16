@@ -16,7 +16,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
   final String _policiesText =
       'POLÍTICA DE PRIVACIDAD Y TÉRMINOS\n\n'
       '1. RESPONSABLE DEL TRATAMIENTO\n'
-      'El titular y responsable de NAVIMAP es ADAN ALFONSO ARIAS ANGULO (Contacto: ingarias9006@gmail.com).\n\n'
+      'El titular y responsable de NAVIMAP es NAVIMAP (Contacto: ingarias9006@gmail.com).\n\n'
       '2. RECOPILACIÓN Y USO DE DATOS\n'
       '• Ubicación Precisa (GPS): NAVIMAP accede a la ubicación del dispositivo en tiempo real únicamente para posicionar al usuario en el mapa y calcular distancias o áreas de forma local. Estos datos no se transmiten a ningún servidor externo ni se comparten con terceros.\n'
       '• Acceso al Almacenamiento: Se solicita permiso para acceder a archivos locales exclusivamente para permitir al usuario importar, almacenar y calibrar mapas en formato GeoPDF. No se recopila ni accede a otra información personal.\n\n'
@@ -38,7 +38,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
   final String _ownershipText =
       'PROPIEDAD INTELECTUAL Y LICENCIA\n\n'
       '1. TITULARIDAD DE DERECHOS\n'
-      'NAVIMAP, incluyendo su código fuente, interfaz gráfica, algoritmos, logotipos, marcas y bases de datos, es propiedad intelectual exclusiva de ADAN ALFONSO ARIAS ANGULO. Todos los derechos están reservados conforme a las leyes nacionales e internacionales de propiedad intelectual.\n\n'
+      'NAVIMAP, incluyendo su código fuente, interfaz gráfica, algoritmos, logotipos, marcas y bases de datos, es propiedad intelectual exclusiva de NAVIMAP. Todos los derechos están reservados conforme a las leyes nacionales e internacionales de propiedad intelectual.\n\n'
       '2. LICENCIA DE USO\n'
       'Se otorga al usuario una licencia de uso personal, no exclusiva, intransferible y limitada para ejecutar la aplicación en dispositivos compatibles autorizados, sujeta al cumplimiento de estos términos.\n\n'
       '3. RESTRICCIONES\n'
@@ -47,7 +47,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
       'La aplicación se entrega "tal cual" y "según disponibilidad". El titular no garantiza que sea infalible o ininterrumpida. La correcta calibración de los mapas y el uso de los datos cartográficos son responsabilidad exclusiva del usuario. El autor no asume responsabilidad alguna por pérdidas directas o indirectas derivadas de errores cartográficos o fallos de precisión en la medición.\n\n'
       '5. CONTACTO Y SOPORTE\n'
       'Para soporte técnico, consultas de licencias o sugerencias, póngase en contacto a través de: ingarias9006@gmail.com\n\n'
-      '© 2026 ADAN ALFONSO ARIAS ANGULO. Todos los derechos reservados.';
+      '© 2026 NAVIMAP. Todos los derechos reservados.';
 
   @override
   Widget build(BuildContext context) {
