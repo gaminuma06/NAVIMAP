@@ -45,6 +45,14 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   bool _isMeasuringMode = false;
   final List<LatLng> _measuringPoints = [];
   LatLng? _selectedLineTapPoint;
+
+  // ==========================================
+  // MODO CAMINATA - REAL-TIME GPS TRACKING
+  // ==========================================
+  bool _isTrackingWalk = false;
+  final List<LatLng> _walkPoints = [];
+  // ==========================================
+
   final Set<Map<String, dynamic>> _selectedPins = {};
 
   LatLng? _currentMapCenter;
@@ -193,6 +201,17 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
           _lastZoom = 17.0;
           _safeMove(_currentLocation, 17.0);
         }
+
+        // ==========================================
+        // MODO CAMINATA - REGISTRO DE COORDENADAS
+        // ==========================================
+        if (_isTrackingWalk) {
+          final latLng = LatLng(data.latitude, data.longitude);
+          if (_walkPoints.isEmpty || _walkPoints.last != latLng) {
+            _walkPoints.add(latLng);
+          }
+        }
+        // ==========================================
       });
     });
   }
@@ -1078,7 +1097,7 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
   List<Polyline> _getPolylines() {
     final List<Polyline> polylines = [];
     final activeLayer = LayerStore.activeMapLayer[_mapTitle];
-    if (activeLayer == null && !_isMeasuringMode) return polylines;
+    if (activeLayer == null && !_isMeasuringMode && !_isTrackingWalk) return polylines;
 
     if (activeLayer != null) {
       final objects = LayerStore.getObjects(activeLayer, mapContext: _mapTitle);
@@ -1117,6 +1136,20 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
         ),
       );
     }
+
+    // ==========================================
+    // MODO CAMINATA - DIBUJO EN TIEMPO REAL
+    // ==========================================
+    if (_isTrackingWalk && _walkPoints.isNotEmpty && _lastLocation != null) {
+      polylines.add(
+        Polyline(
+          points: [..._walkPoints, _currentLocation],
+          color: Colors.greenAccent,
+          strokeWidth: 4.5,
+        ),
+      );
+    }
+    // ==========================================
 
     return polylines;
   }
@@ -1619,6 +1652,39 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
             ),
 
           // --- BARRA INFERIOR DE ACCIONES ---
+          // ==========================================
+          // MODO CAMINATA - BOTÓN DEL MUÑEQUITO
+          // ==========================================
+          if (_isMeasuringMode)
+            Positioned(
+              bottom: 70 + (MediaQuery.of(context).padding.bottom), // Justo arriba de la regla en la barra inferior
+              left: 6,
+              child: GestureDetector(
+                onTap: _startWalkTracking,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1E1E1E),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.directions_walk,
+                    color: Colors.greenAccent,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          // ==========================================
+
           Positioned(
             bottom: 0,
             left: 0,
@@ -1639,7 +1705,36 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    if (_isMeasuringMode) ...[
+                    if (_isTrackingWalk) ...[
+                      Expanded(
+                        child: Center(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            ),
+                            onPressed: _showSaveWalkDialog,
+                            icon: const Icon(Icons.stop, size: 16),
+                            label: const Text(
+                              'DETENER CAMINATA',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _openMapLayers,
+                        child: const Icon(
+                          Icons.layers_outlined,
+                          color: Colors.white24,
+                        ),
+                      ),
+                    ] else if (_isMeasuringMode) ...[
                       Expanded(
                         child: Center(
                           child: OutlinedButton.icon(
@@ -1786,4 +1881,148 @@ class _SatelliteViewScreenState extends State<SatelliteViewScreen> {
       ),
     );
   }
+
+  // =========================================================================
+  // MODO CAMINATA - MÉTODOS DE SOPORTE (AISLADOS)
+  // =========================================================================
+  void _startWalkTracking() {
+    setState(() {
+      _isTrackingWalk = true;
+      _isMeasuringMode = false; // Desactivar medición manual
+      _walkPoints.clear();
+      if (_lastLocation != null) {
+        _walkPoints.add(_currentLocation);
+      }
+    });
+    _showTopBanner(
+      'Grabando caminata en tiempo real...',
+      Colors.green,
+    );
+  }
+
+  void _showSaveWalkDialog() {
+    final controller = TextEditingController(text: 'Caminata');
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text(
+            'Guardar Caminata',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ingresa un nombre para tu caminata grabada:',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: DesignSystem.primary),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.greenAccent),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _discardWalk();
+              },
+              child: const Text('DESCARTAR', style: TextStyle(color: Colors.redAccent)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignSystem.primary,
+              ),
+              onPressed: () {
+                final walkName = controller.text.trim();
+                Navigator.pop(dialogContext);
+                _saveWalk(walkName.isEmpty ? 'Caminata' : walkName);
+              },
+              child: const Text('GUARDAR', style: TextStyle(color: Colors.black)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _getOrCreateActiveLayer() {
+    String? activeLayer = LayerStore.activeMapLayer[_mapTitle];
+    if (activeLayer == null) {
+      int i = 1;
+      String candidate = 'Capa $i';
+      while (LayerStore.layers.any((l) => l['title'].toString().toLowerCase() == candidate.toLowerCase())) {
+        i++;
+        candidate = 'Capa $i';
+      }
+      activeLayer = candidate;
+      LayerStore.initializeLayer(activeLayer, mapContext: _mapTitle);
+      final existingLayers = LayerStore.getLayers(_mapTitle);
+      if (!existingLayers.any((l) => l['title'].toString().toLowerCase() == activeLayer!.toLowerCase())) {
+        existingLayers.add({'title': activeLayer, 'objects': 0});
+      }
+      LayerStore.activeMapLayer[_mapTitle] = activeLayer;
+    }
+    return activeLayer;
+  }
+
+  void _saveWalk(String name) {
+    if (_walkPoints.length < 2) {
+      _showTopBanner('La caminata es demasiado corta para guardarse.', DesignSystem.error);
+      setState(() {
+        _isTrackingWalk = false;
+        _walkPoints.clear();
+      });
+      return;
+    }
+
+    final double length = _calculateGeodesicLength(_walkPoints);
+    final formattedLength = _formatLength(length);
+    final activeLayer = _getOrCreateActiveLayer();
+
+    LayerStore.addObject(
+      activeLayer,
+      {
+        'name': name,
+        'type': GeoObjectType.line,
+        'value': formattedLength,
+        'points': _walkPoints.map((p) => {
+          'latitude': p.latitude,
+          'longitude': p.longitude,
+        }).toList(),
+        'unit': 'm',
+      },
+      mapContext: _mapTitle,
+    );
+
+    _showTopBanner('Caminata "$name" guardada con éxito.', const Color(0xFF388E3C));
+
+    setState(() {
+      _isTrackingWalk = false;
+      _walkPoints.clear();
+    });
+  }
+
+  void _discardWalk() {
+    _showTopBanner('Caminata descartada.', Colors.orange);
+    setState(() {
+      _isTrackingWalk = false;
+      _walkPoints.clear();
+    });
+  }
+  // =========================================================================
 }
