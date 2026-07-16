@@ -1516,20 +1516,21 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
           ),
 
           Positioned(
-            bottom: 160,
+            bottom: 115,
             right: 20,
-            child: GestureDetector(
-              onTap: _calibratePosition,
-              child: _buildCircularButton(Icons.gps_fixed, color: Colors.green),
-            ),
-          ),
-
-          Positioned(
-            bottom: 100,
-            right: 20,
-            child: GestureDetector(
-              onTap: _handlePlacePin,
-              child: _buildCircularButton(Icons.location_on),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: _calibratePosition,
+                  child: _buildCircularButton(Icons.gps_fixed, color: Colors.green),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: _handlePlacePin,
+                  child: _buildCircularButton(Icons.location_on),
+                ),
+              ],
             ),
           ),
 

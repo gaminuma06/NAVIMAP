@@ -12,6 +12,11 @@ import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, Tar
 import '../services/billing_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
+import 'library_screen.dart' show MapStore;
+import '../services/layer_store.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -1024,18 +1029,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icons.chevron_right,
                 color: Colors.white24,
               ),
-              onTap: () async {
-                // 1. Limpiar caché de la licencia local
-                await AccessService().clearLocalCache();
-                // 2. Resetear estado de suscripción en memoria
-                SubscriptionService().updateSubscriptionState('free', false);
-                // 3. Cerrar sesión en Firebase
-                await AuthService().signOut();
-                // 4. Redirigir al inicio limpiando la pila
-                if (context.mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-                }
-              },
+              onTap: () => _showLogoutConfirmation(context),
             ),
           ),
           const SizedBox(height: 16),
@@ -1472,6 +1466,103 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text(
+            '¿Cerrar Sesión?',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            '¡Atención! Al cerrar sesión se eliminarán todos los mapas importados y las capas creadas en este dispositivo.\n\nPor favor, asegúrate de respaldar tu información exportando tus mapas y capas antes de proceder.',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('CANCELAR', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+              ),
+              onPressed: () async {
+                final navigator = Navigator.of(dialogContext);
+                
+                // 1. Limpiar mapas del disco
+                try {
+                  final docDir = await getApplicationDocumentsDirectory();
+                  final metadataFile = File('${docDir.path}/maps_metadata.json');
+                  if (await metadataFile.exists()) {
+                    final content = await metadataFile.readAsString();
+                    final list = jsonDecode(content) as List<dynamic>;
+                    final mapsDir = Directory('${docDir.path}/imported_maps');
+                    final thumbnailsDir = Directory('${docDir.path}/map_thumbnails');
+                    
+                    for (var item in list) {
+                      final name = item['title'] as String;
+                      final pdfFile = File('${mapsDir.path}/$name');
+                      if (await pdfFile.exists()) {
+                        await pdfFile.delete();
+                      }
+                      final thumbFile = File('${thumbnailsDir.path}/$name.png');
+                      if (await thumbFile.exists()) {
+                        await thumbFile.delete();
+                      }
+                    }
+                    await metadataFile.delete();
+                  }
+                } catch (e) {
+                  debugPrint('Error eliminando mapas persistidos: $e');
+                }
+                
+                // 2. Limpiar cache de mapas en memoria
+                MapStore.bytesCache.clear();
+                MapStore.mockMaps.clear();
+                
+                // 3. Limpiar capas guardadas
+                try {
+                  LayerStore.layers.clear();
+                  LayerStore.mapLayerObjects.clear();
+                  await LayerStore.saveLayers();
+                } catch (e) {
+                  debugPrint('Error limpiando capas: $e');
+                }
+                
+                // 4. Limpiar calibraciones de georreferencia
+                try {
+                  final docDir = await getApplicationDocumentsDirectory();
+                  final calFile = File('${docDir.path}/map_calibrations_cache.json');
+                  if (await calFile.exists()) {
+                    await calFile.delete();
+                  }
+                } catch (e) {
+                  debugPrint('Error limpiando calibraciones: $e');
+                }
+                
+                // 5. Limpiar caché de la licencia local
+                await AccessService().clearLocalCache();
+                
+                // 6. Resetear estado de suscripción en memoria
+                SubscriptionService().updateSubscriptionState('free', false);
+                
+                // 7. Cerrar sesión en Firebase
+                await AuthService().signOut();
+                
+                // 8. Redirigir al inicio limpiando la pila
+                navigator.pushNamedAndRemoveUntil('/', (route) => false);
+              },
+              child: const Text('CERRAR SESIÓN', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

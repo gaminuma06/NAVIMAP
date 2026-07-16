@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
+import '../widgets/object_list_item.dart' show GeoObjectType;
 
 class LayerStore {
   // --- BIBLIOTECA GENERAL (RESPALDO MAESTRO) ---
@@ -11,6 +16,119 @@ class LayerStore {
 
   // CAPA ACTIVA POR MAPA
   static Map<String, String?> activeMapLayer = {};
+
+  // --- PERSISTENCIA DE CAPAS ---
+  static Map<String, dynamic> _toJsonObject(Map<String, dynamic> obj) {
+    final copy = Map<String, dynamic>.from(obj);
+    if (copy['type'] is GeoObjectType) {
+      copy['type'] = (copy['type'] as GeoObjectType).name;
+    }
+    return copy;
+  }
+
+  static Map<String, dynamic> _fromJsonObject(Map<String, dynamic> obj) {
+    final copy = Map<String, dynamic>.from(obj);
+    if (copy['type'] is String) {
+      final typeStr = copy['type'] as String;
+      copy['type'] = GeoObjectType.values.firstWhere(
+        (e) => e.name == typeStr,
+        orElse: () => GeoObjectType.point,
+      );
+    }
+    return copy;
+  }
+
+  static Future<void> saveLayers() async {
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final file = File('${docDir.path}/layers_data.json');
+      
+      final serializedMapLayerObjects = mapLayerObjects.map(
+        (key, list) => MapEntry(
+          key,
+          list.map((obj) => _toJsonObject(obj)).toList(),
+        ),
+      );
+
+      final data = {
+        'layers': layers,
+        'mapLayers': mapLayers,
+        'mapLayerObjects': serializedMapLayerObjects,
+        'activeMapLayer': activeMapLayer,
+      };
+      await file.writeAsString(jsonEncode(data));
+      debugPrint('Capas guardadas persistentemente en disco.');
+    } catch (e) {
+      debugPrint('Error al guardar capas persistentemente: $e');
+    }
+  }
+
+  static Future<void> loadLayers() async {
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final file = File('${docDir.path}/layers_data.json');
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        
+        if (data['layers'] != null) {
+          layers = (data['layers'] as List<dynamic>)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+        } else {
+          layers = [];
+        }
+        
+        final loadedMapLayers = data['mapLayers'] as Map<String, dynamic>?;
+        if (loadedMapLayers != null) {
+          mapLayers = loadedMapLayers.map(
+            (key, val) => MapEntry(
+              key,
+              (val as List<dynamic>).map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+            ),
+          );
+        } else {
+          mapLayers = {};
+        }
+        
+        final loadedMapLayerObjects = data['mapLayerObjects'] as Map<String, dynamic>?;
+        if (loadedMapLayerObjects != null) {
+          mapLayerObjects = loadedMapLayerObjects.map(
+            (key, val) => MapEntry(
+              key,
+              (val as List<dynamic>)
+                  .map((e) => _fromJsonObject(Map<String, dynamic>.from(e as Map)))
+                  .toList(),
+            ),
+          );
+        } else {
+          mapLayerObjects = {};
+        }
+        
+        final loadedActiveMapLayer = data['activeMapLayer'] as Map<String, dynamic>?;
+        if (loadedActiveMapLayer != null) {
+          activeMapLayer = loadedActiveMapLayer.map(
+            (key, val) => MapEntry(key, val as String?),
+          );
+        } else {
+          activeMapLayer = {};
+        }
+        
+        debugPrint('Capas cargadas de forma persistente desde el disco.');
+      }
+    } catch (e, stack) {
+      debugPrint('Error al cargar capas persistentemente: $e');
+      debugPrint(stack.toString());
+    }
+  }
+
+  static Future<void> clearAll() async {
+    layers.clear();
+    mapLayers.clear();
+    mapLayerObjects.clear();
+    activeMapLayer.clear();
+    await saveLayers();
+  }
 
   // Obtiene las capas según el contexto (Global o Mapa)
   static List<Map<String, dynamic>> getLayers(String? mapContext) {
@@ -59,6 +177,7 @@ class LayerStore {
         mapLayerObjects[canonicalName] = [];
       }
     }
+    saveLayers();
   }
 
   static void addObject(
@@ -375,6 +494,7 @@ class LayerStore {
         activeMapLayer[key] = canonicalNew;
       }
     }
+    saveLayers();
   }
 
   // --- MÉTODOS DE APOYO PARA SINCRONIZACIÓN ---
@@ -396,5 +516,6 @@ class LayerStore {
       final objects = getObjects(canonicalName, mapContext: mapContext);
       layersList[layerIndex]['objects'] = objects.length;
     }
+    saveLayers();
   }
 }

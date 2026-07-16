@@ -7,6 +7,43 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:776067923020:android:c4866ce26cec0b4b9cc8e9",
+        "android_client_info": {
+          "package_name": "com.adanarias.navimap"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "776067923020-fl66rnmrn8pmdvc245kmr1jk943p4o3o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adanarias.navimap",
+            "certificate_hash": "47762cf6845650897cd4ed2e0c6a719b85e7f666"
+          }
+        },
+        {
+          "client_id": "776067923020-6rko5mdelctcenip3ci9msv565lkbfpq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALexwM4padIYRybGzKB-vbox6e7b05zYE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "776067923020-6rko5mdelctcenip3ci9msv565lkbfpq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:776067923020:android:4b8b0696b4219e689cc8e9",
         "android_client_info": {
           "package_name": "com.example.navimap"
@@ -19,6 +56,22 @@
           "android_info": {
             "package_name": "com.example.navimap",
             "certificate_hash": "ef9f8b2535e4ea4e9998c868550d3737a6491539"
+          }
+        },
+        {
+          "client_id": "776067923020-a94gb0g5i2bkm9j2ouavbf4mh0ifsgk5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.navimap",
+            "certificate_hash": "a22a80fddeb9f2cea667ea40ccbf1bef555a6715"
+          }
+        },
+        {
+          "client_id": "776067923020-k14mt8hc1rqp37083fpbg3h5hmqfukvl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.navimap",
+            "certificate_hash": "ec6dec1971a9bf4e36cd1c39e309f5f3e430f75c"
           }
         },
         {

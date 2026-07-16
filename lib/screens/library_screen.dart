@@ -16,6 +16,7 @@ import '../services/layer_store.dart';
 import '../services/user_location_service.dart';
 import '../services/georeference_service.dart';
 import '../services/subscription_service.dart';
+import '../services/map_persistence_service.dart';
 import 'dart:async';
 
 class MapStore {
@@ -111,6 +112,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     UserLocationService().startTracking();
     _lastLocation = UserLocationService().lastData;
     _recalculateMapStatuses();
+    _loadSavedMaps();
     _locationSubscription = UserLocationService().locationStream.listen((
       location,
     ) {
@@ -123,6 +125,40 @@ class _LibraryScreenState extends State<LibraryScreen> {
     SubscriptionService().planNotifier.addListener(_checkPlanCelebration);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPlanCelebration();
+    });
+  }
+
+  Future<void> _loadSavedMaps() async {
+    if (MapStore.mockMaps.isNotEmpty) return;
+    await LayerStore.loadLayers();
+    final savedMaps = await MapPersistenceService().loadSavedMaps(MapStore.bytesCache);
+    if (!mounted) return;
+    setState(() {
+      for (var map in savedMaps) {
+        final title = map['title'] as String;
+        MapSpatialStatus initialStatus = MapSpatialStatus.notReferenced;
+        if (GeoreferenceService().hasCalibrationFor(title)) {
+          if (_lastLocation != null) {
+            bool isInside = GeoreferenceService().isUserInsideMap(
+              title,
+              _lastLocation!.latitude,
+              _lastLocation!.longitude,
+            );
+            initialStatus = isInside
+                ? MapSpatialStatus.within
+                : MapSpatialStatus.outside;
+          } else {
+            initialStatus = MapSpatialStatus.outside;
+          }
+        }
+        
+        _mockMaps.add({
+          'title': title,
+          'date': map['date'],
+          'status': initialStatus,
+          'thumbnailBytes': map['thumbnail'],
+        });
+      }
     });
   }
 
@@ -732,11 +768,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: DesignSystem.error,
                                             ),
-                                            onPressed: () {
-                                              setState(
-                                                () => _mockMaps.remove(item),
-                                              );
-                                              Navigator.pop(context);
+                                            onPressed: () async {
+                                              final title = item['title'] as String;
+                                              final navigator = Navigator.of(context);
+                                              GeoreferenceService().clearCache(title);
+                                              await MapPersistenceService().deleteMap(title);
+                                              MapStore.bytesCache.remove(title);
+                                              if (mounted) {
+                                                setState(() {
+                                                  _mockMaps.remove(item);
+                                                });
+                                                navigator.pop();
+                                              }
                                             },
                                             child: const Text('ELIMINAR'),
                                           ),
@@ -790,6 +833,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                                   title,
                                                 );
                                               });
+                                              LayerStore.saveLayers();
                                               Navigator.pop(context);
                                             },
                                             child: const Text('ELIMINAR'),
@@ -815,54 +859,57 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ],
             ),
           ),
-          Positioned(
-            bottom: 88,
-            right: 16,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushReplacementNamed(context, '/satellite');
-              },
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE0E0E0), // Gris pálido
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black38,
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.satellite_alt,
+        ],
+      ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          GestureDetector(
+            onTap: () {
+              Navigator.pushReplacementNamed(context, '/satellite');
+            },
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE0E0E0), // Gris pálido
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black38,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.satellite_alt,
+                    color: Color(0xFF1976D2), // Azul pálido / medio
+                    size: 20,
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Satélite',
+                    style: TextStyle(
                       color: Color(0xFF1976D2), // Azul pálido / medio
-                      size: 20,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Satélite',
-                      style: TextStyle(
-                        color: Color(0xFF1976D2), // Azul pálido / medio
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: () => _onAddPressed(),
+            child: const Icon(Icons.add),
+          ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _onAddPressed(),
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -882,6 +929,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
               final bytes = Uint8List.fromList(fullBytes);
               MapStore.bytesCache[name] = bytes;
               await GeoreferenceService().scanGeoPdfMetadata(name, bytes);
+              final dateStr = '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}';
+              await MapPersistenceService().saveMap(name, bytes, thumbnail, dateStr);
             }
           } catch (e) {
             debugPrint('Error al escanear metadatos del GeoPDF importado: $e');
