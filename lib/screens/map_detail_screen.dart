@@ -1771,10 +1771,9 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
               left: 14, // Alineación exacta vertical sobre el icono de la regla
               child: GestureDetector(
                 onTap: _startWalkTracking,
-                child: const Icon(
+                child: _buildCircularButton(
                   Icons.directions_walk,
-                  color: Colors.greenAccent,
-                  size: 28,
+                  color: Colors.white,
                 ),
               ),
             ),
